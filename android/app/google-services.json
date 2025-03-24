@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "465862068014",
+    "project_id": "labour-services-a081c",
+    "storage_bucket": "labour-services-a081c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:465862068014:android:bd1efa6799c2352a041cbf",
+        "android_client_info": {
+          "package_name": "com.example.labour_services"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "465862068014-n2qguunt8voj7nt52uuscsqafp0sqo5q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.labour_services",
+            "certificate_hash": "bd2ce12f1f38547a61815bb5093a4f7e5fc562e4"
+          }
+        },
+        {
+          "client_id": "465862068014-0okablsms8d2h61732ffavlvhic1kem0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBpngy7c1BQvhk5-77ChiyAsK83d6-to_8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "465862068014-0okablsms8d2h61732ffavlvhic1kem0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "465862068014-oedlf6t0vcco99v1e94ps9g9mnfcift8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.labourServices"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:465862068014:android:d1511de761461f4b041cbf",
+        "android_client_info": {
+          "package_name": "com.techease.asif_taj"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "465862068014-0okablsms8d2h61732ffavlvhic1kem0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBpngy7c1BQvhk5-77ChiyAsK83d6-to_8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "465862068014-0okablsms8d2h61732ffavlvhic1kem0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "465862068014-oedlf6t0vcco99v1e94ps9g9mnfcift8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.labourServices"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
