@@ -55,6 +55,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         user = firebaseUser;
         if (user != null) {
           _currentUserId = user?.uid;
+
           _setUserOnlineStatus(true); // Set online immediately when logged in
         } else {
           _setUserOnlineStatus(false);
@@ -81,6 +82,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (user != null) {
       _setUserOnlineStatus(true);
     }
+
     _setUserOnlineStatus(true);
   }
 
