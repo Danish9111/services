@@ -38,8 +38,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  final user = FirebaseAuth.instance.currentUser;
-  late final String _currentUserId = user?.uid ?? 'yourUserId';
+  User? user;
+  String? _currentUserId;
   final databaseRef = FirebaseDatabase.instance.ref();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   bool _isOnline = false;
@@ -49,21 +49,71 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    // Listen for authentication state changes
+    FirebaseAuth.instance.authStateChanges().listen((User? firebaseUser) {
+      setState(() {
+        user = firebaseUser;
+        if (user != null) {
+          _currentUserId = user?.uid;
+          _setUserOnlineStatus(true); // Set online immediately when logged in
+        } else {
+          _setUserOnlineStatus(false);
+        }
+      });
+    });
+
+    // Listen for connectivity changes (optional)
     _connectivitySubscription = Connectivity()
         .onConnectivityChanged
         .listen((ConnectivityResult result) {
-      // Handle individual connectivity result
       setState(() {
         _isOnline = result != ConnectivityResult.none;
       });
+      // Update status based on connectivity if needed
+      if (!_isOnline) {
+        _setUserOnlineStatus(false);
+      } else if (user != null) {
+        _setUserOnlineStatus(true);
+      }
     });
+
+    // If a user is already logged in at startup, set online status to true
+    if (user != null) {
+      _setUserOnlineStatus(true);
+    }
+    _setUserOnlineStatus(true);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (user != null) {
+      if (state == AppLifecycleState.resumed) {
+        // App has come to the foreground – set status to online
+        _setUserOnlineStatus(true);
+      } else {
+        // App is not in the foreground – set status to offline
+        _setUserOnlineStatus(false);
+      }
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription.cancel();
+    _setUserOnlineStatus(false); // Ensure status is offline on dispose
     super.dispose();
+  }
+
+  void _setUserOnlineStatus(bool isOnline) {
+    if (user != null && _currentUserId != null) {
+      databaseRef.child('users/$_currentUserId/online').set(isOnline);
+      if (!isOnline) {
+        databaseRef
+            .child('users/$_currentUserId/lastSeen')
+            .set(ServerValue.timestamp);
+      }
+    }
   }
 
   @override

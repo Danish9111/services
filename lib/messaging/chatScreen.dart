@@ -44,6 +44,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   void initState() {
     super.initState();
     ref.read(lastSeenProvider.notifier).listenForLastSeen(widget.receiverId);
+    listenForReceiverPresence();
 
     if (user != null) {
       setState(() {
@@ -53,7 +54,6 @@ class ChatScreenState extends ConsumerState<ChatScreen>
 
     WidgetsBinding.instance.addObserver(this);
     _fetchName();
-    listenForReceiverPresence();
     _connectivitySubscription = Connectivity()
         .onConnectivityChanged
         .listen((ConnectivityResult result) {
