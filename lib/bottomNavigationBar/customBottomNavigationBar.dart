@@ -36,7 +36,7 @@ class CustomBottomNavBarState extends State<CustomBottomNavBar> {
     FirebaseFirestore.instance
         .collection('chatss')
         .where('receiverId', isEqualTo: uId)
-        .where('isRead', isEqualTo: false)
+        .where('status', isNotEqualTo: 'read')
         .snapshots()
         .listen((event) {
       try {

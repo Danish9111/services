@@ -43,10 +43,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final databaseRef = FirebaseDatabase.instance.ref();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   bool _isOnline = false;
-
   @override
   void initState() {
     super.initState();
+    FirebaseFirestore.instance
+        .collection('chatss')
+        .where('status', isEqualTo: 'sent')
+        .where('receiverId', isEqualTo: _currentUserId)
+        .snapshots()
+        .listen((event) {
+      updateMessageToReceived(event.docs);
+    });
+
+    // Set up the observer for app lifecycle
     WidgetsBinding.instance.addObserver(this);
 
     // Listen for authentication state changes
@@ -55,8 +64,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         user = firebaseUser;
         if (user != null) {
           _currentUserId = user?.uid;
-
           _setUserOnlineStatus(true); // Set online immediately when logged in
+
+          // Attach Firestore listener for messages
+          // FirebaseFirestore.instance
+          //     .collection('chatss')
+          //     .where('receiverId', isEqualTo: _currentUserId)
+          //     .where('status', isEqualTo: 'sent')
+          //     .orderBy('timestamp', descending: false)
+          //     .snapshots()
+          //     .listen((snapshot) {
+          //   updateMessageToReceived(snapshot.docs);
+          // });
         } else {
           _setUserOnlineStatus(false);
         }
@@ -70,7 +89,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       setState(() {
         _isOnline = result != ConnectivityResult.none;
       });
-      // Update status based on connectivity if needed
       if (!_isOnline) {
         _setUserOnlineStatus(false);
       } else if (user != null) {
@@ -82,8 +100,28 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (user != null) {
       _setUserOnlineStatus(true);
     }
-
     _setUserOnlineStatus(true);
+  }
+
+  void updateMessageToReceived(List<QueryDocumentSnapshot> messages) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final unreceivedMessages =
+        messages.where((message) => message['status'] != 'received').toList();
+
+    if (unreceivedMessages.isNotEmpty) {
+      try {
+        for (var messageDoc in unreceivedMessages) {
+          if (messageDoc['receiverId'] == currentUserId) {
+            FirebaseFirestore.instance
+                .collection('chatss')
+                .doc(messageDoc.id)
+                .update({'status': 'received'});
+          }
+        }
+      } catch (e) {
+        throw (e);
+      }
+    }
   }
 
   @override
@@ -98,6 +136,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       }
     }
   }
+
+  //stop here////////////////////
 
   @override
   void dispose() {

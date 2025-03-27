@@ -299,6 +299,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
                           }
 
                           final messages = snapshot.data!.docs;
+
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (_isViewingChat) {
                               final unreadMessages = messages
