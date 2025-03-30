@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/search_service.dart';
 import 'package:services/voiceSearchPage.dart';
 import 'package:badges/badges.dart' as badges;
@@ -62,7 +63,11 @@ class DashboardforworkerPageState extends State<Dashboardforworker> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: _buildAppBar(),
-      drawer: buildNavigationDrawer(context),
+      drawer: Consumer(
+        builder: (context, ref, child) {
+          return buildNavigationDrawer(context, ref); // Pass ref to the drawer
+        },
+      ),
       body: Column(
         children: [
           Expanded(
@@ -78,9 +83,9 @@ class DashboardforworkerPageState extends State<Dashboardforworker> {
   AppBar _buildAppBar() {
     return AppBar(
       toolbarHeight: 100,
-      backgroundColor: Colors.lightBlue.shade50,
+      backgroundColor: Colors.blueGrey.shade600,
       elevation: 4,
-      shadowColor: Colors.lightBlue,
+      shadowColor: Colors.grey,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
@@ -107,14 +112,6 @@ class DashboardforworkerPageState extends State<Dashboardforworker> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromARGB(255, 210, 210, 210),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
       ),
       child: TextField(
         onChanged: _onSearchChanged,
@@ -122,8 +119,8 @@ class DashboardforworkerPageState extends State<Dashboardforworker> {
           filled: true,
           fillColor: Colors.white,
           hintText: 'Search',
-          hintStyle: const TextStyle(
-            color: Colors.blueGrey,
+          hintStyle: TextStyle(
+            color: Colors.blueGrey.shade800,
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
@@ -246,35 +243,6 @@ class DashboardforworkerPageState extends State<Dashboardforworker> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                // Container(
-                //   padding:
-                //       const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                //   decoration: BoxDecoration(
-                //     borderRadius: BorderRadius.circular(20),
-                //     color: const Color.fromARGB(255, 0, 152, 194),
-                //   ),
-                //   child: const Row(
-                //     mainAxisSize: MainAxisSize.min,
-                //     mainAxisAlignment: MainAxisAlignment.center,
-                //     children: [
-                //       Text(
-                //         'View Services ',
-                //         style: TextStyle(
-                //           fontSize: 11, // Smaller font size
-                //           color: Colors.white,
-                //           fontWeight: FontWeight.w600,
-                //           letterSpacing: 0.2,
-                //         ),
-                //       ),
-                //       SizedBox(width: 4),
-                //       Icon(
-                //         Icons.arrow_forward_rounded,
-                //         size: 14, // Smaller icon size
-                //         color: Colors.white,
-                //       ),
-                //     ],
-                //   ),
-                // ),
               ],
             ),
           ),
@@ -329,9 +297,9 @@ class DashboardforworkerPageState extends State<Dashboardforworker> {
       badgeColor: Colors.red.shade400,
       showBadge: _isBadgeVisible,
       child: IconButton(
-        icon: Icon(
+        icon: const Icon(
           Icons.notifications_none_rounded,
-          color: Colors.blueGrey.shade600,
+          color: Colors.white,
         ),
         onPressed: () {
           setState(() {

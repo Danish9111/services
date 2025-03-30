@@ -95,8 +95,18 @@ class MessagePageState extends State<MessagePage> {
     final currentUser = FirebaseAuth.instance.currentUser;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+        title: const Center(
+            child: Padding(
+          padding: EdgeInsets.only(bottom: 20),
+          child: Text(
+            "Messages",
+            style: TextStyle(color: Colors.white),
+          ),
+        )),
+        backgroundColor: Colors.blueGrey.shade600,
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.blueAccent),
       ),

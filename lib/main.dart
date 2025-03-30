@@ -12,7 +12,7 @@ import 'RoleSelectionPage.dart';
 import 'SignInPage.dart';
 import 'auth_wrapper.dart';
 import 'bottomNavigationBar/customBottomNavigationBar.dart';
-import 'bottomNavigationBar/employerProfile.dart';
+import 'bottomNavigationBar/profile.dart';
 import 'bottomNavigationBar/history.dart';
 import 'bottomNavigationBar/messages.dart';
 import 'bottomNavigationBar/notification.dart';
@@ -119,7 +119,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           }
         }
       } catch (e) {
-        throw (e);
+        rethrow;
       }
     }
   }

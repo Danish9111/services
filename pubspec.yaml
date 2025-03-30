@@ -49,6 +49,10 @@ dependencies:
   visibility_detector:
   connectivity_plus: ^2.3.0  
   firebase_database:
+  image_picker: ^0.8.7+3
+  firebase_storage:  
+  flutter_switch:
+
 
 
 
@@ -101,7 +105,7 @@ flutter:
     - assets/chef.png
     - assets/profileimage.jpg
     - assets/default_pic.png
-    
+    - assets/brush_stroke.png
       # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

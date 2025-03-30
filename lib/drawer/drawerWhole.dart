@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers.dart'; // Import the provider file
 
-Drawer buildNavigationDrawer(context) {
+Drawer buildNavigationDrawer(context, ref) {
   return Drawer(
     child: Container(
       color: Colors.white,
@@ -9,13 +11,7 @@ Drawer buildNavigationDrawer(context) {
         padding: EdgeInsets.zero,
         children: [
           _buildDrawerHeader(),
-          _buildDrawerSectionHeader('Main Menu'),
-          _buildDrawerItem(Icons.home, 'Home', () {}),
-          _buildDrawerItem(Icons.explore, 'Browse Services', () {}),
-          _buildDrawerItem(Icons.history, 'Service History', () {}),
-          const Divider(
-            height: 1,
-          ),
+
           _buildDrawerSectionHeader('Account'),
           _buildDrawerItem(Icons.person, 'My Profile', () {}),
           _buildDrawerItem(Icons.payment, 'Payment Methods', () {}),
@@ -25,6 +21,10 @@ Drawer buildNavigationDrawer(context) {
           _buildDrawerItem(Icons.help, 'Help Center', () {}),
           _buildDrawerItem(Icons.phone, 'Contact Us', () {}),
           const SizedBox(height: 20),
+          const Divider(height: 1),
+          const SizedBox(height: 25),
+          // Theme Switch
+          _buildThemeSwitchTile(context, ref),
           _buildDrawerFooter(context),
         ],
       ),
@@ -32,7 +32,7 @@ Drawer buildNavigationDrawer(context) {
   );
 }
 
-UserAccountsDrawerHeader _buildDrawerHeader() {
+Widget _buildDrawerHeader() {
   return UserAccountsDrawerHeader(
     decoration: BoxDecoration(color: Colors.blueGrey.shade800),
     accountName: const Text(
@@ -119,6 +119,113 @@ Future<void> _confirmLogout(BuildContext context) async {
         ),
       ],
     ),
+  );
+}
+
+Widget _buildThemeSwitchTile(BuildContext context, WidgetRef ref) {
+  final isDark = ref.watch(isDarkProvider);
+
+  return GestureDetector(
+    onTap: () {
+      ref.read(isDarkProvider.notifier).state = !isDark;
+    },
+    child: Container(
+        padding: const EdgeInsets.only(right: 35),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.all(8),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isDark ? 'Dark Mode' : 'Light Mode',
+                      style: TextStyle(
+                        // fontSize: 18,s
+                        // fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: isDark ? Colors.white : Colors.blueGrey.shade800,
+                      ),
+                    ),
+                    // const SizedBox(height: 2),
+                  ],
+                ),
+              ],
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+              width: 60,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [Colors.blueGrey.shade700, Colors.grey.shade800]
+                      : [Colors.amber.shade200, Colors.orange.shade200],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.3)
+                        : Colors.orange.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ],
+              ),
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                    left: isDark ? 32 : 2,
+                    right: isDark ? 2 : 32,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      margin: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          )
+                        ],
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: isDark
+                            ? Icon(
+                                Icons.dark_mode,
+                                key: const ValueKey('moon-icon'),
+                                size: 16,
+                                color: Colors.blueGrey.shade800,
+                              )
+                            : Icon(
+                                Icons.light_mode,
+                                key: const ValueKey('sun-icon'),
+                                size: 16,
+                                color: Colors.orange.shade600,
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        )),
   );
 }
 

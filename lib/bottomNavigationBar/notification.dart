@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers.dart'; // Import the provider file
 
-class NotificationsPage extends StatelessWidget {
+class NotificationsPage extends ConsumerWidget {
   // Sample data for notifications
   final List<Map<String, String>> notifications = [
     {
@@ -16,7 +18,8 @@ class NotificationsPage extends StatelessWidget {
     {
       'title': 'Payment Received',
       'date': '2024-12-18',
-      'details': 'You have received payment for the job completed on 2024-12-15.',
+      'details':
+          'You have received payment for the job completed on 2024-12-15.',
     },
     {
       'title': 'Job Cancelled: Painter for House Renovation',
@@ -28,11 +31,16 @@ class NotificationsPage extends StatelessWidget {
   NotificationsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorPro = ref.watch(colorProvider);
     return Scaffold(
       appBar: AppBar(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
         title: const Text('Notifications'),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: colorPro,
+        centerTitle: true,
       ),
       body: ListView.builder(
         itemCount: notifications.length,
@@ -45,7 +53,8 @@ class NotificationsPage extends StatelessWidget {
               contentPadding: const EdgeInsets.all(16.0),
               title: Text(
                 notification['title']!,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,7 +65,8 @@ class NotificationsPage extends StatelessWidget {
                   Text(notification['details']!),
                 ],
               ),
-              trailing: const Icon(Icons.notifications, color: Colors.blueAccent),
+              trailing:
+                  const Icon(Icons.notifications, color: Colors.blueAccent),
             ),
           );
         },

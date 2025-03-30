@@ -7,7 +7,7 @@ import 'chat_database.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
-import '../provider.dart';
+import '../providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -43,7 +43,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   @override
   void initState() {
     super.initState();
-    ref.read(lastSeenProvider.notifier).listenForLastSeen(widget.receiverId);
+    // ref.read(lastSeenProvider.notifier).listenForLastSeen(widget.receiverId);
     listenForReceiverPresence();
 
     if (user != null) {
