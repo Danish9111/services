@@ -43,7 +43,6 @@ dependencies:
   flutter_riverpod:
   cloud_firestore: 
   sqflite:
-  path_provider:
   intl:
   another_flushbar:
   visibility_detector:
@@ -52,6 +51,16 @@ dependencies:
   image_picker: ^0.8.7+3
   firebase_storage:  
   flutter_switch:
+  shimmer:
+  hooks_riverpod: 
+  flutter_hooks:
+  supabase_flutter: ^1.10.0
+  path_provider: ^2.0.0
+  url_launcher: ^6.3.1
+  flutter_mailer: ^3.0.0
+  font_awesome_flutter: ^10.7.0
+
+
 
 
 

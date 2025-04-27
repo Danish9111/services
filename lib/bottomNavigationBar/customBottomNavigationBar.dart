@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 import 'package:badges/badges.dart' as badges;
-import 'package:another_flushbar/flushbar.dart';
 import 'package:services/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -67,20 +66,20 @@ class CustomBottomNavBarState extends ConsumerState<CustomBottomNavBar> {
   }
 
   List<PersistentBottomNavBarItem> _navBarsItems() {
-    final colorPro = ref.watch(colorProvider);
-
+    // final darkColorPro = ref.watch(darkColorProvider);
+    final lightColorPro = ref.watch(lightColorProvider);
     return [
       PersistentBottomNavBarItem(
         icon: const Icon(Icons.home),
         title: "Home",
         activeColorPrimary: Colors.orangeAccent,
-        inactiveColorPrimary: Colors.blueGrey.shade600,
+        inactiveColorPrimary: lightColorPro,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(Icons.history),
         title: "History",
         activeColorPrimary: Colors.orangeAccent,
-        inactiveColorPrimary: Colors.blueGrey.shade600,
+        inactiveColorPrimary: lightColorPro,
       ),
       PersistentBottomNavBarItem(
         icon: badges.Badge(
@@ -90,7 +89,7 @@ class CustomBottomNavBarState extends ConsumerState<CustomBottomNavBar> {
           position: badges.BadgePosition.topEnd(top: -10, end: -10),
           badgeContent: Text(
             _unreadMessages.toString(),
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: lightColorPro),
           ),
           child: const Icon(
             Icons.chat,
@@ -98,49 +97,54 @@ class CustomBottomNavBarState extends ConsumerState<CustomBottomNavBar> {
         ),
         title: "Messages",
         activeColorPrimary: Colors.orangeAccent,
-        inactiveColorPrimary: Colors.blueGrey.shade600,
+        inactiveColorPrimary: lightColorPro,
       ),
       PersistentBottomNavBarItem(
         icon: const Icon(Icons.account_circle),
         title: "Profile",
         activeColorPrimary: Colors.orangeAccent,
-        inactiveColorPrimary: Colors.blueGrey.shade600,
+        inactiveColorPrimary: lightColorPro,
       ),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
+    final darkColorPro = ref.watch(darkColorProvider);
+    // final lightColorPro = ref.watch(lightColorProvider);
+
     return WillPopScope(
-      onWillPop: () async {
-        // Check if the root navigator can pop
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-          return false;
-        }
-        return true; // Allow app to close
-      },
-      child: PersistentTabView(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        context,
-        controller: _controller,
-        screens: _buildScreens(),
-        items: _navBarsItems(),
-        confineToSafeArea: true,
-        backgroundColor: Colors.white,
-        handleAndroidBackButtonPress: false, // Disable built-in back handling
-        resizeToAvoidBottomInset: false,
-        stateManagement: true,
-        navBarStyle: NavBarStyle.style8,
-        navBarHeight: 80,
-        onItemSelected: (index) {
-          if (index == 2) {
-            setState(() {
-              _isBadgeVisible = false;
-            });
+        onWillPop: () async {
+          // Check if the root navigator can pop
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+            return false;
           }
+          return true; // Allow app to close
         },
-      ),
-    );
+        child: Container(
+          child: PersistentTabView(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            context,
+            controller: _controller,
+            screens: _buildScreens(),
+            items: _navBarsItems(),
+            confineToSafeArea: true,
+            backgroundColor: darkColorPro,
+            handleAndroidBackButtonPress:
+                false, // Disable built-in back handling
+            resizeToAvoidBottomInset: false,
+            stateManagement: true,
+            navBarStyle: NavBarStyle.style8,
+            navBarHeight: 80,
+            onItemSelected: (index) {
+              if (index == 2) {
+                setState(() {
+                  _isBadgeVisible = false;
+                });
+              }
+            },
+          ),
+        ));
   }
 }

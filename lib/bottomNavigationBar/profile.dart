@@ -1,32 +1,29 @@
-import 'dart:ffi';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'workerProfileForm.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:services/providers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import 'package:path_provider/path_provider.dart';
 
-// import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
-File? _imageFile; // Declare this at the top of your class
+File? _imageFile;
 
-final Color _primaryColor = Colors.blue.shade800;
-final Color _secondaryColor = Colors.orange.shade600;
-
-class EmployerProfile extends StatefulWidget {
+class EmployerProfile extends ConsumerStatefulWidget {
   const EmployerProfile({super.key});
 
   @override
-  State<EmployerProfile> createState() => _EmployerProfileState();
+  ConsumerState<EmployerProfile> createState() => _EmployerProfileState();
 }
 
-class _EmployerProfileState extends State<EmployerProfile> {
+class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   bool isEmployer = true;
   bool _isEditing = false;
   User? user = FirebaseAuth.instance.currentUser;
 
-  // Employer data remains static initially.
   Map<String, String> employerData = {
     'name': '',
     'email': '',
@@ -38,7 +35,6 @@ class _EmployerProfileState extends State<EmployerProfile> {
     'type': ''
   };
 
-  // Worker data will be updated once the user submits the form.
   Map<String, String> workerData = {
     'name': '',
     'email': '',
@@ -47,8 +43,9 @@ class _EmployerProfileState extends State<EmployerProfile> {
     'jobTitle': '',
     'role': '',
     'about': '',
-    'type': 'Worker'
+    'type': ''
   };
+
   Future<void> _loadProfileData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -83,12 +80,10 @@ class _EmployerProfileState extends State<EmployerProfile> {
       // Update controllers with fetched data.
       _updateControllers();
     } catch (e) {
-      // Handle errors accordingly.
       print("Error loading profile: $e");
     }
   }
 
-  // Get active profile data
   Map<String, String> get activeProfileData =>
       isEmployer ? employerData : workerData;
 
@@ -107,6 +102,13 @@ class _EmployerProfileState extends State<EmployerProfile> {
   void initState() {
     super.initState();
     _loadProfileData();
+    _loadLocalProfileImage(); // Load image from SharedPreferences if available
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      debugPrint("User ID: ${firebaseUser.uid}");
+    } else {
+      debugPrint("User not authenticated");
+    }
 
     // Initialize controllers with current profile data.
     _nameController = TextEditingController(text: activeProfileData['name']);
@@ -118,9 +120,21 @@ class _EmployerProfileState extends State<EmployerProfile> {
     _aboutController = TextEditingController(text: activeProfileData['about']);
   }
 
+  Future<void> _loadLocalProfileImage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? imagePath = prefs.getString('profile_image_path');
+    if (imagePath != null && imagePath.isNotEmpty) {
+      setState(() {
+        _imageFile = File(imagePath);
+      });
+      // Always update provider so drawer/dashboard get the image
+      ref.read(profileImageProvider.notifier).state = imagePath;
+    }
+    // Do NOT reset provider to '' here unless user removed image
+  }
+
   @override
   void dispose() {
-    // Dispose controllers.
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -142,83 +156,109 @@ class _EmployerProfileState extends State<EmployerProfile> {
 
   @override
   Widget build(BuildContext context) {
+    final darkColorPro = ref.watch(darkColorProvider);
+    final lightColorPro = ref.watch(lightColorProvider);
+    const darkColor = Color.fromARGB(255, 63, 72, 76);
     return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-          ),
-          title: const Center(
-              child: Padding(
+      backgroundColor: darkColorPro,
+      appBar: AppBar(
+        elevation: 2,
+        shadowColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+        title: const Center(
+          child: Padding(
             padding: EdgeInsets.only(bottom: 20),
             child: Text(
               "Profile Data",
               style: TextStyle(color: Colors.white),
             ),
-          )),
-          backgroundColor: Colors.blueGrey.shade600,
+          ),
         ),
-        body: Container(
-          color: Colors.white,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    _buildProfileHeader(),
-                    const SizedBox(height: 10),
-                    _buildRoleSwitchCard(),
-                    const SizedBox(height: 10),
-                    _buildInfoSection(),
-                    const SizedBox(height: 20),
-                    _buildActionButtons(),
-                  ],
-                ),
+        backgroundColor: const Color.fromARGB(255, 63, 72, 76),
+      ),
+      body: Container(
+        color: darkColorPro,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  _buildProfileHeader(lightColorPro, darkColorPro),
+                  const SizedBox(height: 10),
+                  _buildRoleSwitchCard(lightColorPro, darkColorPro),
+                  const SizedBox(height: 10),
+                  _buildInfoSection(lightColorPro, darkColorPro),
+                  const SizedBox(height: 20),
+                  _buildActionButtons(lightColorPro, darkColorPro),
+                ],
               ),
             ),
           ),
-        ));
+        ),
+      ),
+    );
   }
 
   // ---------------------------
   // UI Building Methods
   // ---------------------------
-
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(Color lightColorPro, Color darkColorPro) {
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: _primaryColor, width: 2),
+            border: Border.all(color: lightColorPro, width: 2),
           ),
           child: CircleAvatar(
             radius: 50,
-            backgroundColor: Colors.white,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(50),
+            backgroundColor: darkColorPro,
+            child: ClipOval(
               child: (_imageFile != null)
-                  ? Image.file(
-                      _imageFile!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.person,
-                        color: _primaryColor,
-                        size: 50,
-                      ),
+                  ? Stack(
+                      children: [
+                        Image.file(
+                          _imageFile!,
+                          fit: BoxFit.cover,
+                          width: 100,
+                          height: 100,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.person,
+                            color: lightColorPro,
+                            size: 50,
+                          ),
+                        ),
+                        if (_isEditing)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: () async {
+                                _removeProfileImage();
+                              },
+                            ),
+                          ),
+                      ],
                     )
                   : IconButton(
                       icon: Icon(
                         Icons.person,
-                        color: _primaryColor,
+                        color: lightColorPro,
                         size: 50,
                       ),
                       onPressed: () async {
                         if (_isEditing) {
-                          File? pickedImage = await _pickPhotoFromPhone();
+                          File? pickedImage = await _pickPhoto();
                           if (pickedImage != null) {
                             setState(() {
                               _imageFile = pickedImage;
@@ -231,21 +271,23 @@ class _EmployerProfileState extends State<EmployerProfile> {
           ),
         ),
         const SizedBox(height: 15),
-        // If editing, show a TextFormField; otherwise, show the text.
         _isEditing
             ? TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: 'Name',
-                  labelStyle: TextStyle(color: _primaryColor),
+                  labelStyle: TextStyle(color: lightColorPro),
                   enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: _primaryColor)),
+                      borderSide: BorderSide(color: lightColorPro)),
                 ),
                 validator: (value) => value == null || value.isEmpty
                     ? "Name cannot be empty"
                     : null,
-                style:
-                    const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: lightColorPro,
+                ),
               )
             : Text(
                 activeProfileData['name']!.isNotEmpty
@@ -254,7 +296,7 @@ class _EmployerProfileState extends State<EmployerProfile> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: _primaryColor,
+                  color: lightColorPro,
                 ),
               ),
         const SizedBox(height: 5),
@@ -263,13 +305,13 @@ class _EmployerProfileState extends State<EmployerProfile> {
                 controller: _roleController,
                 decoration: InputDecoration(
                   labelText: 'Role',
-                  labelStyle: TextStyle(color: _secondaryColor),
+                  labelStyle: TextStyle(color: lightColorPro),
                   enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: _secondaryColor)),
+                      borderSide: BorderSide(color: lightColorPro)),
                 ),
                 style: TextStyle(
                   fontSize: 18,
-                  color: _secondaryColor,
+                  color: lightColorPro,
                   fontWeight: FontWeight.w500,
                 ),
               )
@@ -279,7 +321,7 @@ class _EmployerProfileState extends State<EmployerProfile> {
                     : "No Role",
                 style: TextStyle(
                   fontSize: 18,
-                  color: _secondaryColor,
+                  color: lightColorPro,
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
@@ -288,46 +330,100 @@ class _EmployerProfileState extends State<EmployerProfile> {
     );
   }
 
-  Future<File?> _pickPhotoFromPhone() async {
-    final ImagePicker picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+  File? pickedImage;
+  Future<File?> _pickPhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return null;
+    pickedImage = File(picked.path);
+    // Save to SharedPreferences for persistence
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profile_image_path', picked.path);
+    // Always update provider so drawer/dashboard get the image
+    ref.read(profileImageProvider.notifier).state = picked.path;
+    return File(picked.path);
+  }
 
-    if (pickedFile != null) {
-      File imageFile = File(pickedFile.path);
-      _putImageToFireBaseStorage(imageFile);
-      return imageFile;
-    } else {
-      return null;
+  void _removeProfileImage() async {
+    setState(() {
+      _imageFile = null;
+    });
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('profile_image_path');
+    // Only clear provider if user actually removes image
+    ref.read(profileImageProvider.notifier).state = '';
+  }
+
+  Future<void> _putImageToSupabaseStorage(File imageFile) async {
+    final supabase = sb.Supabase.instance.client;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return; // safety first
+
+    try {
+      // 1. uploadBinary → returns the path or throws on network/storage errors
+      final filePath =
+          await supabase.storage.from('profileimages').uploadBinary(
+                'uploads/$uid.jpg',
+                await imageFile.readAsBytes(),
+                fileOptions: const sb.FileOptions(upsert: true),
+              );
+      if (filePath.isEmpty) throw Exception('Empty upload path');
+      debugPrint('rawPath → $filePath');
+
+      // 2. getPublicUrl → synchronous String
+      final publicUrl = supabase.storage
+          .from('profileimages')
+          .getPublicUrl('uploads/$uid.jpg');
+
+      try {
+// 🔥 Save public URL locally for reuse
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profile_image_url', publicUrl);
+
+// 🧠 Update provider too if needed
+        ref.read(profileImageProvider.notifier).state = publicUrl;
+      } catch (e) {
+        debugPrint('❌ Error storing image info to sharedpreferences: $e');
+      }
+
+      // 3. update + select → returns List<Map<String, dynamic>>
+      //    throws a PostgrestException on RLS or network errors
+      final updatedRows = await supabase
+          .from('employerProfiles')
+          .update({'profileImage': publicUrl})
+          .eq('firebase_uid', uid)
+          .select(); // returns List<Map<String,dynamic>> :contentReference[oaicite:0]{index=0}
+
+      if (updatedRows.isEmpty) {
+        debugPrint('❌ No profile row was updated');
+      } else {
+        debugPrint('✅ Profile updated, sample return: ${updatedRows.first}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image uploaded to supabase')),
+        );
+      }
+    } on sb.PostgrestException catch (e) {
+      // catches RLS / HTTP / Postgrest errors
+      debugPrint('❌ Supabase error: ${e.message}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Supabase error: ${e.message}')),
+      );
+    } catch (e) {
+      // catches any other errors (e.g. file IO)
+      debugPrint('🔥 Unexpected error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unexpected error: $e')),
+      );
     }
   }
 
-  Future<void> _putImageToFireBaseStorage(File imageFile) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final storageRef =
-        FirebaseStorage.instance.ref().child('profileImages/$uid.jpg');
-    storageRef.putFile(imageFile).then((taskSnapshot) {
-      taskSnapshot.ref.getDownloadURL().then((downloadUrl) {
-        // Save the download URL to Firestore or use it as needed.
-        FirebaseFirestore.instance
-            .collection('employerProfiles')
-            .doc(uid)
-            .update({
-          'profileImage': downloadUrl,
-        });
-      });
-    }).catchError((error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error uploading image: $error")));
-    });
-  }
-
-  Widget _buildRoleSwitchCard() {
+  Widget _buildRoleSwitchCard(Color lightColorPro, Color darkColorPro) {
     return Card(
-      color: Colors.white,
+      color: darkColorPro,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade100, width: 1),
+        side: BorderSide(color: lightColorPro, width: 1),
       ),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Padding(
@@ -339,7 +435,7 @@ class _EmployerProfileState extends State<EmployerProfile> {
               'Current Mode:',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey.shade700,
+                color: lightColorPro,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -351,26 +447,24 @@ class _EmployerProfileState extends State<EmployerProfile> {
                   ScaleTransition(
                     scale: AlwaysStoppedAnimation(isEmployer ? 1.0 : 0.9),
                     child: Text(
-                      activeProfileData['type']!,
+                      isEmployer ? 'Employer' : 'Worker',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
-                        color: isEmployer ? _primaryColor : _secondaryColor,
+                        color: lightColorPro,
                       ),
                     ),
                   ),
-                  // const SizedBox(height: 4),
                   Transform.rotate(
                     angle: -0.1,
                     child: Opacity(
                       opacity: 0.8,
                       child: SizedBox(
-                        // The SizedBox width will match the intrinsic width from the column
                         width: double.infinity,
                         child: Image.asset(
                           'assets/brush_stroke.png',
-                          height: 8, // Adjust this height for a subtle effect
+                          height: 8,
                           fit: BoxFit.fitWidth,
                           color: Colors.green.shade600.withOpacity(0.6),
                         ),
@@ -386,40 +480,62 @@ class _EmployerProfileState extends State<EmployerProfile> {
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildInfoSection(Color lightColorPro, Color darkColorPro) {
     return Column(
       children: [
-        _buildEditableEmailField(Icons.email, 'Email', _emailController,
-            validatorMsg: "Email cannot be empty"),
-        _buildEditableField(Icons.phone, 'Phone', _phoneController,
-            validatorMsg: "Phone cannot be empty"),
-        _buildEditableField(Icons.location_on, 'Location', _locationController,
-            validatorMsg: "Location cannot be empty"),
+        _buildEditableEmailField(
+          icon: Icons.email,
+          label: 'Email',
+          controller: _emailController,
+          validatorMsg: "Email cannot be empty",
+          lightColorPro: lightColorPro,
+          darkColorPro: darkColorPro,
+        ),
+        _buildEditableField(
+          icon: Icons.phone,
+          label: 'Contact',
+          controller: _phoneController,
+          validatorMsg: "Phone number cannot be empty",
+          lightColorPro: lightColorPro,
+          darkColorPro: darkColorPro,
+        ),
+        _buildEditableField(
+          icon: Icons.location_on,
+          label: 'Location',
+          controller: _locationController,
+          validatorMsg: "Location cannot be empty",
+          lightColorPro: lightColorPro,
+          darkColorPro: darkColorPro,
+        ),
         const SizedBox(height: 10),
-        _buildAboutCard(),
+        _buildAboutCard(lightColorPro, darkColorPro),
       ],
     );
   }
 
-  Widget _buildEditableEmailField(
-      IconData icon, String label, TextEditingController controller,
-      {String? validatorMsg}) {
+  Widget _buildEditableEmailField({
+    required IconData icon,
+    required String label,
+    required TextEditingController controller,
+    String? validatorMsg,
+    required Color lightColorPro,
+    required Color darkColorPro,
+  }) {
     return ListTile(
-      leading: Icon(icon, color: _primaryColor),
+      leading: Icon(icon, color: lightColorPro),
       title: _isEditing
           ? TextFormField(
               controller: controller,
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: TextStyle(color: _primaryColor),
+                labelStyle: TextStyle(color: lightColorPro),
                 enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: _primaryColor)),
+                    borderSide: BorderSide(color: lightColorPro)),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return "Email cannot be empty";
                 }
-                // Simple email regex pattern.
                 final emailRegex =
                     RegExp(r"^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$");
                 if (!emailRegex.hasMatch(value)) {
@@ -430,38 +546,45 @@ class _EmployerProfileState extends State<EmployerProfile> {
             )
           : Text(
               controller.text,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: lightColorPro),
             ),
     );
   }
 
-  Widget _buildEditableField(
-      IconData icon, String label, TextEditingController controller,
-      {String? validatorMsg}) {
+  Widget _buildEditableField({
+    required IconData icon,
+    required String label,
+    required TextEditingController controller,
+    String? validatorMsg,
+    required Color lightColorPro,
+    required Color darkColorPro,
+  }) {
     return ListTile(
-      leading: Icon(icon, color: _primaryColor),
+      leading: Icon(icon, color: lightColorPro),
       title: _isEditing
           ? TextFormField(
               controller: controller,
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: TextStyle(color: _primaryColor),
+                labelStyle: TextStyle(color: lightColorPro),
                 enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: _primaryColor)),
+                    borderSide: BorderSide(color: lightColorPro)),
               ),
               validator: (value) =>
                   value == null || value.isEmpty ? validatorMsg : null,
             )
           : Text(
               controller.text,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: lightColorPro),
             ),
     );
   }
 
-  Widget _buildAboutCard() {
+  Widget _buildAboutCard(Color lightColorPro, Color darkColorPro) {
+    final lightDarkColorPro = ref.watch(lightDarkColorProvider);
+    final isDark = ref.watch(isDarkProvider);
     return Card(
-      color: Colors.white,
+      color: isDark ? lightDarkColorPro : Colors.white,
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -471,14 +594,19 @@ class _EmployerProfileState extends State<EmployerProfile> {
           children: [
             Row(
               children: [
-                Icon(Icons.info_outline, color: _primaryColor),
+                Icon(Icons.info_outline,
+                    color: isDark
+                        ? Colors.white
+                        : const Color.fromARGB(255, 63, 72, 76)),
                 const SizedBox(width: 8),
                 Text(
                   'About ${activeProfileData['type']}',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: _primaryColor,
+                    color: isDark
+                        ? Colors.white
+                        : const Color.fromARGB(255, 63, 72, 76),
                   ),
                 ),
               ],
@@ -490,16 +618,16 @@ class _EmployerProfileState extends State<EmployerProfile> {
                     maxLines: 3,
                     decoration: InputDecoration(
                       labelText: 'About',
-                      labelStyle: TextStyle(color: _primaryColor),
+                      labelStyle: TextStyle(color: lightColorPro),
                       enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: _primaryColor)),
+                          borderSide: BorderSide(color: lightColorPro)),
                     ),
                     validator: (value) => value == null || value.isEmpty
                         ? "About cannot be empty"
                         : null,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
-                      color: Colors.grey.shade700,
+                      color: Color.fromARGB(255, 63, 72, 76),
                       height: 1.4,
                     ),
                   )
@@ -507,7 +635,9 @@ class _EmployerProfileState extends State<EmployerProfile> {
                     activeProfileData['about']!,
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey.shade700,
+                      color: isDark
+                          ? Colors.white
+                          : const Color.fromARGB(255, 63, 72, 76),
                       height: 1.4,
                     ),
                   ),
@@ -517,17 +647,19 @@ class _EmployerProfileState extends State<EmployerProfile> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(Color lightColorPro, Color darkColorPro) {
+    final isDark = ref.watch(isDarkProvider);
     return Column(
       children: [
-        // If in editing mode, show Save button; else, show Edit button.
         _isEditing
             ? ElevatedButton.icon(
-                icon: const Icon(Icons.save, color: Colors.white),
-                label: const Text('Save Profile',
-                    style: TextStyle(color: Colors.white)),
+                icon: Icon(Icons.save, color: lightColorPro),
+                label: Text(
+                  'Save Profile',
+                  style: TextStyle(color: lightColorPro),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
+                  backgroundColor: darkColorPro,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   shape: RoundedRectangleBorder(
@@ -537,11 +669,19 @@ class _EmployerProfileState extends State<EmployerProfile> {
                 onPressed: _saveProfile,
               )
             : ElevatedButton.icon(
-                icon: const Icon(Icons.edit, color: Colors.white),
-                label: const Text('Edit Profile',
-                    style: TextStyle(color: Colors.white)),
+                icon: Icon(Icons.edit,
+                    color: isDark
+                        ? const Color.fromARGB(255, 63, 72, 76)
+                        : Colors.white),
+                label: Text(
+                  'Edit Profile',
+                  style: TextStyle(
+                      color: isDark
+                          ? const Color.fromARGB(255, 63, 72, 76)
+                          : Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
+                  backgroundColor: Colors.orangeAccent,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   shape: RoundedRectangleBorder(
@@ -549,7 +689,10 @@ class _EmployerProfileState extends State<EmployerProfile> {
                   ),
                 ),
                 onPressed: () {
-                  // Enter edit mode and update controllers with current data.
+                  isEmployer
+                      ? ref.read(userProfileProvider.notifier).state =
+                          'employer'
+                      : 'worker';
                   setState(() {
                     _isEditing = true;
                   });
@@ -558,14 +701,14 @@ class _EmployerProfileState extends State<EmployerProfile> {
               ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          icon: Icon(Icons.swap_horiz, color: _primaryColor),
+          icon: Icon(Icons.swap_horiz, color: lightColorPro),
           label: Text(
             'Switch to ${isEmployer ? 'Worker' : 'Employer'} Profile',
-            style: TextStyle(color: _primaryColor),
+            style: TextStyle(color: lightColorPro),
           ),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 15),
-            side: BorderSide(color: _primaryColor),
+            side: BorderSide(color: lightColorPro),
           ),
           onPressed: _toggleProfileType,
         ),
@@ -578,14 +721,17 @@ class _EmployerProfileState extends State<EmployerProfile> {
   // ---------------------------
   void _toggleProfileType() async {
     try {
-      if (isEmployer) {
-        // Switching from Employer to Worker Profile.
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid == null) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('User not authenticated.')));
-          return;
         }
+        return;
+      }
+
+      if (isEmployer) {
+        // Switching to Worker Profile
         DocumentSnapshot doc = await FirebaseFirestore.instance
             .collection('workerProfiles')
             .doc(uid)
@@ -596,17 +742,30 @@ class _EmployerProfileState extends State<EmployerProfile> {
                 Map<String, String>.from(doc.data() as Map<String, dynamic>);
             isEmployer = false;
           });
+          _updateControllers();
         } else {
-          // Show form or prompt to create worker profile.
           _showWorkerProfileForm();
         }
       } else {
-        setState(() {
-          isEmployer = true;
-        });
+        // Switching to Employer Profile: Fetch latest data
+        DocumentSnapshot employerDoc = await FirebaseFirestore.instance
+            .collection('employerProfiles')
+            .doc(uid)
+            .get();
+        if (employerDoc.exists) {
+          setState(() {
+            employerData = Map<String, String>.from(
+                employerDoc.data() as Map<String, dynamic>);
+            isEmployer = true;
+          });
+          _updateControllers();
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Employer profile not found.')));
+          }
+        }
       }
-      // Update controllers after switching.
-      _updateControllers();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -616,7 +775,19 @@ class _EmployerProfileState extends State<EmployerProfile> {
   }
 
   Future<void> _saveProfile() async {
-    // Validate form fields before saving.
+    final original = pickedImage;
+    // 1. Copy to app dir
+    final appDir = await getApplicationDocumentsDirectory();
+    final filename =
+        '${DateTime.now().millisecondsSinceEpoch}_${FirebaseAuth.instance.currentUser!.uid}.jpg';
+    final savedFile = await original?.copy('${appDir.path}/$filename');
+
+    // 2. Store that local path
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('local_profile_image', savedFile?.path ?? '');
+
+    // 3. Upload to Supabase
+    await _putImageToSupabaseStorage(savedFile!);
     if (!_formKey.currentState!.validate()) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
@@ -625,7 +796,6 @@ class _EmployerProfileState extends State<EmployerProfile> {
       return;
     }
 
-    // Prepare updated profile data.
     Map<String, String> updatedData = {
       'name': _nameController.text.trim(),
       'email': _emailController.text.trim(),
@@ -633,11 +803,10 @@ class _EmployerProfileState extends State<EmployerProfile> {
       'location': _locationController.text.trim(),
       'role': _roleController.text.trim(),
       'about': _aboutController.text.trim(),
-      'type': activeProfileData['type']!, // Remains the same.
+      'type': activeProfileData['type']!,
     };
 
     try {
-      // Save to the proper Firestore collection.
       String collection = isEmployer ? 'employerProfiles' : 'workerProfiles';
       await FirebaseFirestore.instance
           .collection(collection)
@@ -645,7 +814,6 @@ class _EmployerProfileState extends State<EmployerProfile> {
           .set(updatedData);
 
       setState(() {
-        // Update local data.
         if (isEmployer) {
           employerData = updatedData;
         } else {
@@ -663,7 +831,6 @@ class _EmployerProfileState extends State<EmployerProfile> {
     }
   }
 
-  /// Shows the bottom sheet containing the worker profile form.
   void _showWorkerProfileForm() {
     showModalBottomSheet(
       context: context,
@@ -683,7 +850,6 @@ class _EmployerProfileState extends State<EmployerProfile> {
               isEmployer = false;
             });
             Navigator.pop(context);
-            // Update controllers after creating worker profile.
             _updateControllers();
           },
         ),

@@ -27,50 +27,75 @@ class NotificationsPage extends ConsumerWidget {
       'details': 'The job for painting has been cancelled by the worker.',
     },
   ];
-
+  Color darkMode = const Color.fromARGB(255, 63, 72, 76);
   NotificationsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colorPro = ref.watch(colorProvider);
+    final darkColorPro = ref.watch(darkColorProvider);
+    final lightColorPro = ref.watch(lightColorProvider);
     return Scaffold(
-      appBar: AppBar(
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-        title: const Text('Notifications'),
-        backgroundColor: colorPro,
-        centerTitle: true,
-      ),
-      body: ListView.builder(
-        itemCount: notifications.length,
-        itemBuilder: (context, index) {
-          final notification = notifications[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            elevation: 5,
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16.0),
-              title: Text(
-                notification['title']!,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 5),
-                  Text('Date: ${notification['date']}'),
-                  const SizedBox(height: 5),
-                  Text(notification['details']!),
-                ],
-              ),
-              trailing:
-                  const Icon(Icons.notifications, color: Colors.blueAccent),
+        appBar: AppBar(
+          shape: darkMode == darkColorPro
+              ? const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(0),
+                  ),
+                )
+              : const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(20),
+                  ),
+                ),
+          title: const Padding(
+            padding: EdgeInsets.only(bottom: 20),
+            child: Text(
+              'Notifications',
+              style: TextStyle(color: Colors.white),
             ),
-          );
-        },
-      ),
-    );
+          ),
+          backgroundColor: const Color.fromARGB(255, 63, 72, 76),
+          centerTitle: true,
+        ),
+        body: Container(
+          color: darkColorPro,
+          padding: const EdgeInsets.all(16.0),
+          child: ListView.builder(
+            itemCount: notifications.length,
+            itemBuilder: (context, index) {
+              final notification = notifications[index];
+              return Card(
+                color: darkColorPro,
+                margin:
+                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                elevation: 5,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16.0),
+                  title: Text(
+                    notification['title']!,
+                    style: TextStyle(
+                        color: lightColorPro,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 5),
+                      Text('Date: ${notification['date']}',
+                          style: TextStyle(color: lightColorPro)),
+                      const SizedBox(height: 5),
+                      Text(
+                        notification['details']!,
+                        style: TextStyle(color: lightColorPro),
+                      ),
+                    ],
+                  ),
+                  trailing: Icon(Icons.notifications, color: lightColorPro),
+                ),
+              );
+            },
+          ),
+        ));
   }
 }

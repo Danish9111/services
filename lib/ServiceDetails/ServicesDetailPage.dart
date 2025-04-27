@@ -1,6 +1,7 @@
 import 'package:services/messaging/chatScreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:services/ServiceDetails/professionalDetail.dart';
 
 class ServiceDetailPage extends StatelessWidget {
   final String serviceTitle;
@@ -152,178 +153,186 @@ class ProfessionalCard extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.grey.shade50, Colors.white],
-          ),
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ProfessionalDetailPage(),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Flexible(
-              flex: 3,
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      topRight: Radius.circular(16),
-                    ),
-                    child: Image.network(
-                      imagePath,
-                      height: double.infinity,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        height: double.infinity,
-                        color: Colors.grey.shade200,
-                        child: Image.asset(
-                          'assets/default_pic.png',
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenWidth * 0.03,
-                        vertical: screenHeight * 0.01,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blueGrey.shade800.withOpacity(0.85),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        '$experience Experience',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: screenWidth * 0.03,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      ),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.grey.shade50, Colors.white],
             ),
-            Flexible(
-              flex: 3,
-              fit: FlexFit.tight,
-              child: Padding(
-                padding: EdgeInsets.all(screenWidth * 0.03),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Flexible(
+                flex: 3,
+                child: Stack(
+                  alignment: Alignment.bottomRight,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: TextStyle(
-                              fontSize: screenWidth * 0.04,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                    ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                      child: Image.network(
+                        imagePath,
+                        height: double.infinity,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: double.infinity,
+                          color: Colors.grey.shade200,
+                          child: Image.asset(
+                            'assets/default_pic.png',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
                           ),
                         ),
-                        if (isVerified)
-                          Icon(Icons.verified,
-                              color: Colors.blue, size: screenWidth * 0.045),
-                      ],
+                      ),
                     ),
-                    Row(
-                      children: [
-                        Icon(Icons.star_rounded,
-                            color: Colors.amber.shade600,
-                            size: screenWidth * 0.045),
-                        SizedBox(width: screenWidth * 0.01),
-                        Text(
-                          rating.toStringAsFixed(1),
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.035,
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w600,
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.03,
+                          vertical: screenHeight * 0.01,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey.shade800.withOpacity(0.85),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
                           ),
                         ),
-                      ],
+                        child: Text(
+                          '$experience Experience',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: screenWidth * 0.03,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                screenWidth * 0.03,
-                0,
-                screenWidth * 0.03,
-                screenHeight * 0.01,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                                  receiverId: professionalId,
-                                )),
+              Flexible(
+                flex: 3,
+                fit: FlexFit.tight,
+                child: Padding(
+                  padding: EdgeInsets.all(screenWidth * 0.03),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.04,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isVerified)
+                            Icon(Icons.verified,
+                                color: Colors.blue, size: screenWidth * 0.045),
+                        ],
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueGrey.shade800,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                      Row(
+                        children: [
+                          Icon(Icons.star_rounded,
+                              color: Colors.amber.shade600,
+                              size: screenWidth * 0.045),
+                          SizedBox(width: screenWidth * 0.01),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.035,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Icon(
-                        Icons.message,
-                        size: screenWidth * 0.045,
-                        color: Colors.white,
-                      ),
-                    ),
+                    ],
                   ),
-                  SizedBox(width: screenWidth * 0.03),
-                  Expanded(
-                      child: Center(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showContactDialog(context),
-                      icon: Icon(
-                        Icons.call,
-                        size: screenWidth * 0.045,
-                        color: Colors.grey,
-                      ),
-                      label: const Text(''),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        side: const BorderSide(color: Colors.grey),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  screenWidth * 0.03,
+                  0,
+                  screenWidth * 0.03,
+                  screenHeight * 0.01,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                    receiverId: professionalId,
+                                  )),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey.shade800,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.message,
+                          size: screenWidth * 0.045,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-                  )),
-                ],
+                    SizedBox(width: screenWidth * 0.03),
+                    Expanded(
+                        child: Center(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showContactDialog(context),
+                        icon: Icon(
+                          Icons.call,
+                          size: screenWidth * 0.045,
+                          color: Colors.grey,
+                        ),
+                        label: const Text(''),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: Colors.grey),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                        ),
+                      ),
+                    )),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

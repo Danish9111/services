@@ -1,25 +1,52 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:services/drawer/contact_us.dart';
 import '../providers.dart'; // Import the provider file
+import 'package:services/drawer/helpCenter.dart';
+import 'dart:io';
+import 'package:services/bottomNavigationBar/profile.dart';
 
 Drawer buildNavigationDrawer(context, ref) {
+  final userEmail = ref.watch(userEmailProvider);
+  final userName = ref.watch(userNameProvider);
+  final darkColorPro = ref.watch(darkColorProvider);
+  final lightColorPro = ref.watch(lightColorProvider);
+  final imageUrl = ref.watch(profileImageProvider);
+
   return Drawer(
     child: Container(
-      color: Colors.white,
+      color: darkColorPro,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          _buildDrawerHeader(),
+          _buildDrawerHeader(userEmail, userName, imageUrl),
 
-          _buildDrawerSectionHeader('Account'),
-          _buildDrawerItem(Icons.person, 'My Profile', () {}),
-          _buildDrawerItem(Icons.payment, 'Payment Methods', () {}),
-          _buildDrawerItem(Icons.settings, 'App Settings', () {}),
+          _buildDrawerSectionHeader(
+              'Account', darkColorPro, Colors.orangeAccent),
+          _buildDrawerItem(Icons.person, 'My Profile', () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const EmployerProfile()),
+            );
+          }, darkColorPro, Colors.orangeAccent, lightColorPro),
+          _buildDrawerItem(Icons.payment, 'Payment Methods', () {},
+              darkColorPro, Colors.orangeAccent, lightColorPro),
+
+          _buildDrawerItem(Icons.settings, 'App Settings', () {}, darkColorPro,
+              Colors.orangeAccent, lightColorPro),
           const Divider(height: 1),
-          _buildDrawerSectionHeader('Support'),
-          _buildDrawerItem(Icons.help, 'Help Center', () {}),
-          _buildDrawerItem(Icons.phone, 'Contact Us', () {}),
+          _buildDrawerSectionHeader(
+              'Support', darkColorPro, Colors.orangeAccent),
+          _buildDrawerItem(Icons.help, 'Help Center', () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => HelpCenterPage()),
+            );
+          }, darkColorPro, Colors.orangeAccent, lightColorPro),
+          _buildDrawerItem(Icons.phone, 'Contact Us', () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const ContactUsPage()),
+            );
+          }, darkColorPro, Colors.orangeAccent, lightColorPro),
           const SizedBox(height: 20),
           const Divider(height: 1),
           const SizedBox(height: 25),
@@ -32,34 +59,75 @@ Drawer buildNavigationDrawer(context, ref) {
   );
 }
 
-Widget _buildDrawerHeader() {
-  return UserAccountsDrawerHeader(
-    decoration: BoxDecoration(color: Colors.blueGrey.shade800),
-    accountName: const Text(
-      "Nadeem Danish",
-      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+Widget _buildDrawerHeader(String userEmail, String userName, String imageUrl) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: const BoxDecoration(
+      color: Color.fromARGB(255, 63, 72, 76),
     ),
-    accountEmail: const Text(
-      "nadeem@example.com",
-      style: TextStyle(color: Colors.white),
-    ),
-    currentAccountPicture: CircleAvatar(
-      backgroundColor: Colors.white,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: Image.asset('assets/profile_pic.jpeg', fit: BoxFit.cover),
-      ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        CircleAvatar(
+          radius: 40,
+          backgroundColor: Colors.grey[200],
+          child: Builder(
+            builder: (_) {
+              try {
+                if (imageUrl.isNotEmpty) {
+                  if (imageUrl.startsWith('http')) {
+                    // Network image
+                    return CircleAvatar(
+                      radius: 40,
+                      backgroundImage: NetworkImage(imageUrl),
+                    );
+                  } else {
+                    // Local file image
+                    return CircleAvatar(
+                      radius: 40,
+                      backgroundImage: FileImage(File(imageUrl)),
+                    );
+                  }
+                } else {
+                  return const CircleAvatar(
+                    radius: 40,
+                    backgroundImage: AssetImage('assets/default_pic.png'),
+                  );
+                }
+              } catch (e) {
+                debugPrint('❌Error loading profile image: $e');
+                return const CircleAvatar(
+                  radius: 40,
+                  backgroundImage: AssetImage('assets/default_pic.png'),
+                );
+              }
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          userName,
+          style:
+              const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        Text(
+          userEmail,
+          style: const TextStyle(color: Colors.white),
+        ),
+      ],
     ),
   );
 }
 
-Widget _buildDrawerSectionHeader(String title) {
+Widget _buildDrawerSectionHeader(
+    String title, Color darkColorPro, Color lightColorPro) {
   return Padding(
     padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
     child: Text(
       title,
       style: TextStyle(
-        color: Colors.blueGrey.shade600,
+        color: lightColorPro,
         fontWeight: FontWeight.w600,
         fontSize: 14,
         letterSpacing: 0.5,
@@ -68,10 +136,11 @@ Widget _buildDrawerSectionHeader(String title) {
   );
 }
 
-ListTile _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
+ListTile _buildDrawerItem(IconData icon, String title, VoidCallback onTap,
+    Color darkColorPro, orangeAccent, lightColorPro) {
   return ListTile(
-    leading: Icon(icon, color: Colors.blueGrey.shade600),
-    title: Text(title, style: TextStyle(color: Colors.blueGrey.shade800)),
+    leading: Icon(icon, color: orangeAccent),
+    title: Text(title, style: TextStyle(color: lightColorPro)),
     contentPadding: const EdgeInsets.symmetric(horizontal: 20),
     minLeadingWidth: 20,
     onTap: onTap,

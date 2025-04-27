@@ -5,12 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
-import 'messaging/chatScreen.dart'; // Import your ChatScreen
-
 import 'DashBoardForWorker.dart';
 import 'RoleSelectionPage.dart';
 import 'SignInPage.dart';
-import 'auth_wrapper.dart';
 import 'bottomNavigationBar/customBottomNavigationBar.dart';
 import 'bottomNavigationBar/profile.dart';
 import 'bottomNavigationBar/history.dart';
@@ -18,6 +15,9 @@ import 'bottomNavigationBar/messages.dart';
 import 'bottomNavigationBar/notification.dart';
 import 'signup_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'providers.dart'; // import your provider
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -27,17 +27,36 @@ void main() async {
   FirebaseFirestore.instance.settings =
       const Settings(persistenceEnabled: true);
 
-  runApp(const ProviderScope(child: MyApp()));
+  // Load image path from SharedPreferences and update provider
+  final prefs = await SharedPreferences.getInstance();
+  final imagePath = prefs.getString('profile_image_path') ?? '';
+  final container = ProviderContainer();
+  container.read(profileImageProvider.notifier).state = imagePath;
+
+  await sb.Supabase.initialize(
+    url: 'https://wclstppljeelcmaoejba.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjbHN0cHBsamVlbGNtYW9lamJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwMzEyNjgsImV4cCI6MjA2MDYwNzI2OH0.a7pKTr7NX0j6v_MLrcXuFUmnxPPXKoKn8uMaQSBEzek',
+  );
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        profileImageProvider.overrideWith((ref) => imagePath),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
-  _MyAppState createState() => _MyAppState();
+  MyAppState createState() => MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   User? user;
   String? _currentUserId;
   final databaseRef = FirebaseDatabase.instance.ref();

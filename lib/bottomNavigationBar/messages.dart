@@ -4,15 +4,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:services/providers.dart'; // Make sure this file exports darkColorProvider and lightColorProvider
 
-class MessagePage extends StatefulWidget {
+class MessagePage extends ConsumerStatefulWidget {
   const MessagePage({super.key});
 
   @override
   MessagePageState createState() => MessagePageState();
 }
 
-class MessagePageState extends State<MessagePage> {
+class MessagePageState extends ConsumerState<MessagePage> {
   // Track dismissed conversation sender IDs locally.
   final Set<String> dismissedSenderIds = {};
   StreamSubscription<QuerySnapshot>? _subscription;
@@ -31,7 +33,7 @@ class MessagePageState extends State<MessagePage> {
         .listen((snapshot) {
           // Update badge count here
           final unreadCount = snapshot.docs.length;
-          // Update your badge UI
+          // Update your badge UI accordingly.
         });
   }
 
@@ -58,7 +60,7 @@ class MessagePageState extends State<MessagePage> {
         });
   }
 
-  // Add this helper method to generate chatId
+  // Helper method to generate chatId
   String getChatId(String a, String b) {
     return a.compareTo(b) < 0 ? '$a-$b' : '$b-$a';
   }
@@ -93,24 +95,38 @@ class MessagePageState extends State<MessagePage> {
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
+    // Use your Riverpod providers
+    final darkColorPro = ref.watch(darkColorProvider);
+    final lightColorPro = ref.watch(lightColorProvider);
+    // Card/message background (you can adjust this as needed)
+    const darkColor = Color.fromARGB(255, 63, 72, 76);
+    final isDark = ref.watch(isDarkProvider);
+    const cardColor = Color.fromARGB(1, 193, 193, 193);
+
     return Scaffold(
       appBar: AppBar(
+        // leading: const BackButton(color: Colors.white),
+
+        elevation: 2,
+        shadowColor: Colors.white,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
-        title: const Center(
-            child: Padding(
+        title: const Padding(
           padding: EdgeInsets.only(bottom: 20),
           child: Text(
             "Messages",
             style: TextStyle(color: Colors.white),
           ),
-        )),
-        backgroundColor: Colors.blueGrey.shade600,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.blueAccent),
+        ),
+        centerTitle: true,
+        backgroundColor: darkColor,
+        // iconTheme: IconThemeData(color: lightColorPro),
+        actions: [
+          _buildStatusFilter(darkColor, lightColorPro),
+        ],
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: darkColorPro,
       body: _isActive
           ? StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -120,14 +136,23 @@ class MessagePageState extends State<MessagePage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                      child: Text(
+                    'Error: ${snapshot.error}',
+                    style: TextStyle(color: lightColorPro),
+                  ));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final messages = snapshot.data!.docs;
                 if (messages.isEmpty) {
-                  return const Center(child: Text('No messages'));
+                  return Center(
+                    child: Text(
+                      'No messages',
+                      style: TextStyle(color: lightColorPro),
+                    ),
+                  );
                 }
 
                 // Map to store the latest message for each sender, ignoring dismissed senders.
@@ -148,15 +173,14 @@ class MessagePageState extends State<MessagePage> {
 
                 return ListView.separated(
                   itemCount: latestMessagesList.length,
-                  separatorBuilder: (context, index) => const Divider(
-                    height: .5,
-                    color: Colors.grey,
+                  separatorBuilder: (context, index) => Divider(
+                    height: 0.5,
+                    color: lightColorPro.withOpacity(0.5),
                   ),
                   itemBuilder: (context, index) {
                     final doc = latestMessagesList[index];
                     final data = doc.data() as Map<String, dynamic>;
-                    final bool isRead = data['status'] ==
-                        'read'; // Replace isRead check with status check
+                    final bool isRead = data['status'] == 'read';
                     final Timestamp ts = data['timestamp'] as Timestamp;
                     final DateTime date = ts.toDate();
                     final String formattedDate =
@@ -173,7 +197,6 @@ class MessagePageState extends State<MessagePage> {
                         color: const Color.fromARGB(255, 255, 129, 129),
                         child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Icon(Icons.delete, color: Colors.white),
                             SizedBox(height: 4),
@@ -191,7 +214,7 @@ class MessagePageState extends State<MessagePage> {
                         });
                       },
                       child: Container(
-                        color: Colors.white,
+                        color: !isDark ? Colors.white : cardColor,
                         width: double.infinity,
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(
@@ -201,7 +224,7 @@ class MessagePageState extends State<MessagePage> {
                             children: [
                               CircleAvatar(
                                 radius: 18,
-                                backgroundColor: Colors.blueAccent,
+                                backgroundColor: lightColorPro,
                                 child: Image.network(
                                   data['senderPhoto'] ?? '',
                                   fit: BoxFit.cover,
@@ -224,6 +247,7 @@ class MessagePageState extends State<MessagePage> {
                                           fontWeight: data['status'] == 'read'
                                               ? FontWeight.normal
                                               : FontWeight.bold,
+                                          color: lightColorPro,
                                         ),
                                       ),
                                     ],
@@ -235,7 +259,7 @@ class MessagePageState extends State<MessagePage> {
                                   Text(
                                     formattedDate,
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: lightColorPro,
                                       fontSize: 12,
                                       fontWeight: isRead
                                           ? FontWeight.normal
@@ -245,7 +269,7 @@ class MessagePageState extends State<MessagePage> {
                                   Text(
                                     formattedTime,
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: lightColorPro,
                                       fontSize: 12,
                                       fontWeight: isRead
                                           ? FontWeight.normal
@@ -259,7 +283,6 @@ class MessagePageState extends State<MessagePage> {
                           onTap: () async {
                             final chatId =
                                 getChatId(currentUser.uid, data['senderId']);
-
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -267,8 +290,6 @@ class MessagePageState extends State<MessagePage> {
                                     receiverId: data['senderId'] ?? ''),
                               ),
                             );
-
-                            // Update condition to check status instead of isRead
                             if (data['status'] != 'read') {
                               await updateAllUnreadMessages(
                                   data['senderId'], chatId);
@@ -284,4 +305,56 @@ class MessagePageState extends State<MessagePage> {
           : const Center(child: CircularProgressIndicator()),
     );
   }
+
+  Widget _buildStatusFilter(Color darkColor, Color lightColor) {
+    return PopupMenuButton<JobStatus>(
+      onSelected: (status) => setState(() {}),
+      itemBuilder: (_) => JobStatus.values.map((status) {
+        return PopupMenuItem<JobStatus>(
+          value: status,
+          child: Row(
+            children: [
+              Icon(
+                status.icon,
+                color: status.backgroundColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                status.label,
+                style: TextStyle(color: lightColor),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+      color: darkColor,
+      icon: Padding(
+        padding: const EdgeInsets.only(right: 20, bottom: 20),
+        child: Icon(
+          Icons.filter_list,
+          color: lightColor,
+        ),
+      ),
+    );
+  }
+}
+
+enum JobStatus {
+  all('All', Icons.all_inclusive, Colors.grey, Colors.grey),
+  completed('Completed', Icons.check_circle, Colors.green, Colors.white),
+  inProgress('In Progress', Icons.access_time, Colors.orange, Colors.white),
+  cancelled('Cancelled', Icons.cancel, Colors.red, Colors.white);
+
+  final String label;
+  final IconData icon;
+  final Color backgroundColor;
+  final Color textColor;
+
+  const JobStatus(
+    this.label,
+    this.icon,
+    this.backgroundColor,
+    this.textColor,
+  );
 }

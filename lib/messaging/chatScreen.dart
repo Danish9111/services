@@ -9,6 +9,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 import '../providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'customeLoader.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   // Receiver id passed from the previous screen
@@ -42,8 +43,19 @@ class ChatScreenState extends ConsumerState<ChatScreen>
 
   @override
   void initState() {
+    if (user != null) {
+      databaseRef.child('users/$_currentUserId/online').set(true);
+      databaseRef
+          .child('users/$_currentUserId/online')
+          .onDisconnect()
+          .set(false);
+      databaseRef
+          .child('users/$_currentUserId/lastSeen')
+          .onDisconnect()
+          .set(ServerValue.timestamp);
+    }
     super.initState();
-    // ref.read(lastSeenProvider.notifier).listenForLastSeen(widget.receiverId);
+    ref.read(lastSeenProvider.notifier).listenForLastSeen(widget.receiverId);
     listenForReceiverPresence();
 
     if (user != null) {
@@ -68,17 +80,15 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (user != null) {
       if (state == AppLifecycleState.resumed) {
-        // Set user online status in Firebase Realtime Database
         databaseRef.child('users/$_currentUserId/online').set(true);
         _isViewingChat = true;
       } else {
         _isViewingChat = false;
-
-        // Set user offline status in Firebase Realtime Database
         databaseRef.child('users/$_currentUserId/online').set(false);
         databaseRef
             .child('users/$_currentUserId/lastSeen')
             .set(ServerValue.timestamp);
+        ref.read(lastSeenProvider.notifier).updateLastSeen();
       }
     }
   }
@@ -89,17 +99,6 @@ class ChatScreenState extends ConsumerState<ChatScreen>
     _connectivitySubscription.cancel();
     super.dispose();
   }
-
-  // @override
-  // void didChangeAppLifecycleState(AppLifecycleState state) {
-  //   if (state == AppLifecycleState.resumed) {
-  //     setState(() {
-  //     });
-  //   } else {
-  //     setState(() {
-  //     });
-  //   }
-  // }
 
   // Fetches the name from workerProfiles collection using receiverId
   void _fetchName() async {
@@ -186,6 +185,9 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   @override
   Widget build(BuildContext context) {
     final lastSeen = ref.watch(lastSeenProvider);
+    final lightDarkPro = ref.watch(lightDarkColorProvider);
+    final darkColorPro = ref.watch(darkColorProvider);
+    final lightColorPro = ref.watch(lightColorProvider);
 
     final chatId = getChatId(_currentUserId, widget.receiverId);
     // Conditionally set the stream based on the viewing flag.
@@ -193,174 +195,172 @@ class ChatScreenState extends ConsumerState<ChatScreen>
         ? FirebaseFirestore.instance
             .collection('chatss')
             .where('chatId', isEqualTo: chatId)
+            // .where('status', isNotEqualTo: 'read')
             .orderBy('timestamp', descending: false)
             .snapshots()
         : null;
 
     return VisibilityDetector(
-      key: const Key('chat-screen-key'),
-      onVisibilityChanged: (visibilityInfo) {
-        final visiblePercentage = visibilityInfo.visibleFraction * 100;
-        setState(() {
-          _isViewingChat = visiblePercentage > 50;
-        });
-      },
-      child: Scaffold(
-        backgroundColor: Colors.grey.shade100,
-        appBar: AppBar(
-            toolbarHeight: 60,
-            elevation: 4,
-            centerTitle: true,
-            flexibleSpace: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.lightBlue, Colors.lightBlueAccent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            title: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _photoUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.network(
-                                _photoUrl!,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
+        key: const Key('chat-screen-key'),
+        onVisibilityChanged: (visibilityInfo) {
+          final visiblePercentage = visibilityInfo.visibleFraction * 100;
+          setState(() {
+            _isViewingChat = visiblePercentage > 50;
+          });
+        },
+        child: Scaffold(
+          backgroundColor: lightDarkPro,
+          appBar: AppBar(
+              iconTheme: const IconThemeData(color: Colors.white),
+              toolbarHeight: 70,
+              elevation: 4,
+              shape: const RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.vertical(bottom: Radius.circular(20))),
+              centerTitle: true,
+              backgroundColor: const Color.fromARGB(255, 63, 72, 76),
+              title: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _photoUrl != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: Image.network(
+                                  _photoUrl!,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.account_circle,
+                                size: 40,
+                                color: Colors.white,
                               ),
-                            )
-                          : const Icon(
-                              Icons.account_circle,
-                              size: 40,
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            _name.isEmpty ? 'Loading...' : _name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
+                              fontSize: 16,
                             ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          _name.isEmpty ? 'Loading...' : _name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: 16,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Text(
+                        _isReceiverOnline
+                            ? 'Online'
+                            : lastSeen != null
+                                ? 'Last seen ${formatLastSeen(lastSeen)}'
+                                : 'Loading...',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
                         ),
                       ),
-                    ],
-                  ),
-                  Text(
-                    _isReceiverOnline
-                        ? 'Online'
-                        : lastSeen != null
-                            ? 'Last seen ${formatLastSeen(lastSeen)}'
-                            : 'Loading...',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            )),
-        body: GestureDetector(
-          // Dismiss the keyboard when tapping outside the input area
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: Column(
-            children: [
-              Expanded(
-                child: chatStream == null
-                    ? const Center(child: Text('Chat inactive'))
-                    : StreamBuilder<QuerySnapshot>(
-                        stream: chatStream,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return Center(
+                    )
+                  ],
+                ),
+              )),
+          body: GestureDetector(
+            // Dismiss the keyboard when tapping outside the input area
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: Column(
+              children: [
+                Expanded(
+                  child: chatStream == null
+                      ? const Center(child: Text('Chat inactive'))
+                      : StreamBuilder<QuerySnapshot>(
+                          stream: chatStream,
+                          builder: (context, snapshot) {
+                            // Error handling
+                            if (snapshot.hasError) {
+                              return Center(
                                 child: Text(
-                                    'Error loading messages: ${snapshot.error}'));
-                          }
+                                    'Error loading messages: ${snapshot.error}'),
+                              );
+                            }
 
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-                          if (!snapshot.hasData || snapshot.data == null) {
-                            return const Center(
-                                child: Text('No messages found'));
-                          }
+                            // Show the loader only if there's no data at all
+                            if (!snapshot.hasData || snapshot.data == null) {
+                              return const Center(child: CustomLoader());
+                            }
 
-                          final messages = snapshot.data!.docs;
+                            // Now that data exists, even if connection state is waiting,
+                            // we don't show the loader
+                            final messages = snapshot.data!.docs;
 
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (_isViewingChat) {
-                              final unreadMessages = messages
-                                  .where(
-                                      (message) => message['status'] != 'read')
-                                  .toList();
-                              if (unreadMessages.isNotEmpty) {
-                                try {
-                                  updateMessageStatus(unreadMessages);
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content:
-                                            Text('Error updating status: $e')),
-                                  );
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (_isViewingChat) {
+                                final unreadMessages = messages
+                                    .where((message) =>
+                                        message['status'] != 'read')
+                                    .toList();
+                                if (unreadMessages.isNotEmpty) {
+                                  try {
+                                    updateMessageStatus(unreadMessages);
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(
+                                              'Error updating status: $e')),
+                                    );
+                                  }
                                 }
                               }
-                            }
-                          });
+                            });
 
-                          return ListView.separated(
-                            reverse: true,
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(16),
-                            itemCount: messages.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 2),
-                            itemBuilder: (context, index) {
-                              final message =
-                                  messages[messages.length - 1 - index];
-                              final isMe =
-                                  message['senderId'] == _currentUserId;
+                            return ListView.separated(
+                              reverse: true,
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: messages.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 2),
+                              itemBuilder: (context, index) {
+                                final message =
+                                    messages[messages.length - 1 - index];
+                                final isMe =
+                                    message['senderId'] == _currentUserId;
 
-                              return Align(
-                                alignment: isMe
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                child: _ChatBubble(
-                                  text: message['text'],
-                                  isMe: isMe,
-                                  timestamp: message['timestamp']?.toDate(),
-                                  status: isMe ? message['status'] : '',
-                                  isOnline: _isOnline,
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-              ),
-              _MessageInput(
-                controller: _controller,
-                onSend: _sendMessage,
-                isSending: _isSending,
-                isOnline: _isOnline,
-              ),
-            ],
+                                return Align(
+                                  alignment: isMe
+                                      ? Alignment.centerRight
+                                      : Alignment.centerLeft,
+                                  child: _ChatBubble(
+                                    text: message['text'],
+                                    isMe: isMe,
+                                    timestamp: message['timestamp']?.toDate(),
+                                    status: isMe ? message['status'] : '',
+                                    isOnline: _isOnline,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                ),
+                _MessageInput(
+                  controller: _controller,
+                  onSend: _sendMessage,
+                  isSending: _isSending,
+                  isOnline: _isOnline,
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 }
 
