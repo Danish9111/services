@@ -5,6 +5,8 @@ import 'package:services/providers.dart';
 // Assume these providers are defined in your separate file.
 
 class HelpCenterPage extends ConsumerWidget {
+  const HelpCenterPage({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final darkColorPro = ref.watch(darkColorProvider);

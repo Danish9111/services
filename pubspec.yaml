@@ -32,7 +32,8 @@ dependencies:
     sdk: flutter
   firebase_auth:
   google_sign_in:
-  firebase_core:
+  cloud_firestore: ^5.6.7 # or latest
+  firebase_core: ^3.13.0
   gap:
   persistent_bottom_nav_bar:
   shared_preferences:
@@ -41,7 +42,7 @@ dependencies:
   permission_handler:
   badges: ^2.0.3
   flutter_riverpod:
-  cloud_firestore: 
+  # cloud_firestore: 
   sqflite:
   intl:
   another_flushbar:
@@ -59,6 +60,7 @@ dependencies:
   url_launcher: ^6.3.1
   flutter_mailer: ^3.0.0
   font_awesome_flutter: ^10.7.0
+  firebase_app_check: ^0.3.2+5
 
 
 
@@ -115,6 +117,7 @@ flutter:
     - assets/profileimage.jpg
     - assets/default_pic.png
     - assets/brush_stroke.png
+    - assets/google_logo.png
       # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

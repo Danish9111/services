@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 //used in drawer
-final userEmailProvider = StateProvider<String?>((ref) => null);
+final userEmailProvider = StateProvider<String?>((ref) => "");
 final userNameProvider = StateProvider<String?>((ref) => null);
 final userProfileProvider = StateProvider<String?>((ref) => null);
 
@@ -55,4 +55,4 @@ class LastSeenNotifier extends StateNotifier<AsyncValue<DateTime>> {
   }
 }
 
-final profileImageProvider = StateProvider<String?>((ref) => '');
+final profileImageProvider = StateProvider<String?>((ref) => null);

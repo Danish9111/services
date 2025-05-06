@@ -157,7 +157,8 @@ class ProfessionalCard extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const ProfessionalDetailPage(),
+          builder: (_) =>
+              ProfessionalDetailPage(professionalId: professionalId),
         ),
       ),
       child: Card(

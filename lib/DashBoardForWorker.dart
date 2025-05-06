@@ -10,6 +10,7 @@ import 'providers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 class Dashboardforworker extends ConsumerStatefulWidget {
   const Dashboardforworker({super.key});
@@ -83,6 +84,13 @@ class DashboardforworkerPageState extends ConsumerState<Dashboardforworker> {
 
   @override
   Widget build(BuildContext context) {
+    // Set light blue status bar color only for this screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Color(0xFFB3E5FC), // light blue
+        statusBarIconBrightness: Brightness.dark,
+      ));
+    });
     final darkColorPro = ref.watch(darkColorProvider);
     final lightColorPro = ref.watch(lightColorProvider);
     List<Map<String, String>> filteredServices =
@@ -139,41 +147,47 @@ class DashboardforworkerPageState extends ConsumerState<Dashboardforworker> {
   }
 
   Widget _buildSearchHeader(bool isDark) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.05,
-      width: MediaQuery.of(context).size.width * 0.48,
-      decoration: BoxDecoration(
-        color:
-            isDark ? const Color.fromARGB(255, 82, 89, 92) : Colors.grey[200],
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: TextField(
-        onChanged: _onSearchChanged,
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black,
-        ),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor:
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.05,
+        width: MediaQuery.of(context).size.width * 0.48,
+        decoration: BoxDecoration(
+          color:
               isDark ? const Color.fromARGB(255, 82, 89, 92) : Colors.grey[200],
-          hintText: 'Search',
-          hintStyle: TextStyle(
-            color: isDark ? Colors.white70 : Colors.grey[700],
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: TextField(
+          onChanged: _onSearchChanged,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
           ),
-          prefixIcon: Icon(Icons.search_rounded,
-              color: isDark ? Colors.white70 : Colors.grey[700]),
-          suffixIcon: IconButton(
-            icon: Icon(Icons.mic,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: isDark
+                ? const Color.fromARGB(255, 82, 89, 92)
+                : Colors.grey[200],
+            hintText: 'Search',
+            hintStyle: TextStyle(
+              color: isDark ? Colors.white70 : Colors.grey[700],
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+            prefixIcon: Icon(Icons.search_rounded,
                 color: isDark ? Colors.white70 : Colors.grey[700]),
-            onPressed: () => _showVoiceSearch(),
+            suffixIcon: IconButton(
+              icon: Icon(Icons.mic,
+                  color: isDark ? Colors.white70 : Colors.grey[700]),
+              onPressed: () => _showVoiceSearch(),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
         ),
       ),
     );

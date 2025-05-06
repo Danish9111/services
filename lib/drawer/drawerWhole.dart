@@ -6,13 +6,14 @@ import '../providers.dart'; // Import the provider file
 import 'package:services/drawer/helpCenter.dart';
 import 'dart:io';
 import 'package:services/bottomNavigationBar/profile.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 Drawer buildNavigationDrawer(context, ref) {
-  final userEmail = ref.watch(userEmailProvider);
-  final userName = ref.watch(userNameProvider);
+  final userEmail = ref.watch(userEmailProvider) ?? '';
+  final userName = ref.watch(userNameProvider) ?? '';
   final darkColorPro = ref.watch(darkColorProvider);
   final lightColorPro = ref.watch(lightColorProvider);
-  final imageUrl = ref.watch(profileImageProvider);
+  final imageUrl = ref.watch(profileImageProvider) ?? "";
 
   return Drawer(
     child: Container(
@@ -111,10 +112,10 @@ Widget _buildDrawerHeader(String userEmail, String userName, String imageUrl) {
           style:
               const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        Text(
-          userEmail,
-          style: const TextStyle(color: Colors.white),
-        ),
+        // Text(
+        //   userEmail,
+        //   style: const TextStyle(color: Colors.white),
+        // ),
       ],
     ),
   );
@@ -298,6 +299,22 @@ Widget _buildThemeSwitchTile(BuildContext context, WidgetRef ref) {
   );
 }
 
-logout(BuildContext context) {
-  FirebaseAuth.instance.signOut();
+Future<void> logout(BuildContext context) async {
+  final databaseRef = FirebaseDatabase.instance.ref();
+  final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  if (currentUserId.isNotEmpty) {
+    try {
+      await databaseRef.child('users/$currentUserId/online').set(false);
+      await databaseRef
+          .child('users/$currentUserId/lastSeen')
+          .set(ServerValue.timestamp);
+      debugPrint('✅ Successfully set user offline');
+    } catch (e) {
+      debugPrint('❌ Error setting offline: $e');
+    }
+  }
+
+  // Now safely sign out AFTER setting offline
+  await FirebaseAuth.instance.signOut();
 }

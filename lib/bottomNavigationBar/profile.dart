@@ -9,6 +9,7 @@ import 'workerProfileForm.dart';
 import 'package:services/providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:path_provider/path_provider.dart';
+import '../messaging/customeLoader.dart';
 
 File? _imageFile;
 
@@ -22,7 +23,10 @@ class EmployerProfile extends ConsumerStatefulWidget {
 class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   bool isEmployer = true;
   bool _isEditing = false;
+  bool _isSaving = false;
+  String? publicUrl;
   User? user = FirebaseAuth.instance.currentUser;
+  final uid = FirebaseAuth.instance.currentUser?.uid;
 
   Map<String, String> employerData = {
     'name': '',
@@ -47,10 +51,53 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   };
 
   Future<void> _loadProfileData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-
+    final prefs = await SharedPreferences.getInstance();
+    bool loadedFromCache = false;
     try {
+      // Try loading from cache first
+      final cachedEmail = prefs.getString('profile_email_$uid');
+      final cachedPhone = prefs.getString('profile_phone_$uid');
+      final cachedLocation = prefs.getString('profile_location_$uid');
+      final cachedAbout = prefs.getString('profile_about_$uid');
+      if (cachedEmail != null &&
+          cachedPhone != null &&
+          cachedLocation != null &&
+          cachedAbout != null) {
+        setState(() {
+          workerData['email'] = cachedEmail;
+          workerData['phone'] = cachedPhone;
+          workerData['location'] = cachedLocation;
+          workerData['about'] = cachedAbout;
+        });
+        loadedFromCache = true;
+      }
+      // Always fetch from Firestore at least once to update cache if needed
+      DocumentSnapshot workerDoc = await FirebaseFirestore.instance
+          .collection('workerProfiles')
+          .doc(uid)
+          .get();
+      if (workerDoc.exists) {
+        final data =
+            Map<String, dynamic>.from(workerDoc.data() as Map<String, dynamic>);
+        setState(() {
+          workerData = Map<String, String>.from(
+              data.map((k, v) => MapEntry(k, v?.toString() ?? '')));
+        });
+        // Update cache if values are present
+        if (data['email'] != null) {
+          await prefs.setString('profile_email_$uid', data['email']);
+        }
+        if (data['phone'] != null) {
+          await prefs.setString('profile_phone_$uid', data['phone']);
+        }
+        if (data['location'] != null) {
+          await prefs.setString('profile_location_$uid', data['location']);
+        }
+        if (data['about'] != null) {
+          await prefs.setString('profile_about_$uid', data['about']);
+        }
+      }
       // Check and load employer profile data.
       DocumentSnapshot employerDoc = await FirebaseFirestore.instance
           .collection('employerProfiles')
@@ -65,22 +112,22 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
       }
 
       // Similarly, load worker profile data if needed.
-      DocumentSnapshot workerDoc = await FirebaseFirestore.instance
+      DocumentSnapshot workerDocs = await FirebaseFirestore.instance
           .collection('workerProfiles')
           .doc(uid)
           .get();
 
-      if (workerDoc.exists) {
+      if (workerDocs.exists) {
         setState(() {
           workerData = Map<String, String>.from(
-              workerDoc.data() as Map<String, dynamic>);
+              workerDocs.data() as Map<String, dynamic>);
         });
       }
 
       // Update controllers with fetched data.
       _updateControllers();
     } catch (e) {
-      print("Error loading profile: $e");
+      debugPrint("Error loading profile: $e");
     }
   }
 
@@ -101,6 +148,7 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   @override
   void initState() {
     super.initState();
+
     _loadProfileData();
     _loadLocalProfileImage(); // Load image from SharedPreferences if available
     final firebaseUser = FirebaseAuth.instance.currentUser;
@@ -121,17 +169,39 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   }
 
   Future<void> _loadLocalProfileImage() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? imagePath = prefs.getString('profile_image_path');
-    if (imagePath != null && imagePath.isNotEmpty) {
+    if (uid == null) {
       setState(() {
-        _imageFile = File(imagePath);
+        _imageFile = null;
       });
-      // Always update provider so drawer/dashboard get the image
-      ref.read(profileImageProvider.notifier).state = imagePath;
+      ref.read(profileImageProvider.notifier).state = '';
+      return;
     }
-    // Do NOT reset provider to '' here unless user removed image
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? imagePath = prefs.getString('profile_image_path_$uid');
+    setState(() {
+      _imageFile =
+          (imagePath != null && imagePath.isNotEmpty) ? File(imagePath) : null;
+    });
+    ref.read(profileImageProvider.notifier).state = imagePath ?? '';
   }
+
+  // Call this after login/logout/account switch to always load the correct image
+  // Future<void> reloadProfileImageForCurrentUser() async {
+  //   if (uid == null) {
+  //     setState(() {
+  //       _imageFile = null;
+  //     });
+  //     ref.read(profileImageProvider.notifier).state = '';
+  //     return;
+  //   }
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   String? imagePath = prefs.getString('profile_image_path_$uid');
+  //   setState(() {
+  //     _imageFile =
+  //         (imagePath != null && imagePath.isNotEmpty) ? File(imagePath) : null;
+  //   });
+  //   ref.read(profileImageProvider.notifier).state = imagePath ?? '';
+  // }
 
   @override
   void dispose() {
@@ -178,27 +248,37 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
         ),
         backgroundColor: const Color.fromARGB(255, 63, 72, 76),
       ),
-      body: Container(
-        color: darkColorPro,
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _buildProfileHeader(lightColorPro, darkColorPro),
-                  const SizedBox(height: 10),
-                  _buildRoleSwitchCard(lightColorPro, darkColorPro),
-                  const SizedBox(height: 10),
-                  _buildInfoSection(lightColorPro, darkColorPro),
-                  const SizedBox(height: 20),
-                  _buildActionButtons(lightColorPro, darkColorPro),
-                ],
+      body: Stack(
+        children: [
+          Container(
+            color: darkColorPro,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      _buildProfileHeader(lightColorPro, darkColorPro),
+                      const SizedBox(height: 10),
+                      _buildRoleSwitchCard(lightColorPro, darkColorPro),
+                      const SizedBox(height: 10),
+                      _buildInfoSection(lightColorPro, darkColorPro),
+                      const SizedBox(height: 20),
+                      _buildActionButtons(lightColorPro, darkColorPro),
+                      _buildProfileCompletionSection(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          if (_isSaving)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const CustomLoader(),
+            ),
+        ],
       ),
     );
   }
@@ -337,10 +417,12 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
     if (picked == null) return null;
     pickedImage = File(picked.path);
     // Save to SharedPreferences for persistence
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('profile_image_path', picked.path);
-    // Always update provider so drawer/dashboard get the image
-    ref.read(profileImageProvider.notifier).state = picked.path;
+    if (uid != null) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profile_image_path_$uid', picked.path);
+      // Always update provider so drawer/dashboard get the image
+      ref.read(profileImageProvider.notifier).state = picked.path;
+    }
     return File(picked.path);
   }
 
@@ -348,15 +430,15 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
     setState(() {
       _imageFile = null;
     });
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('profile_image_path');
-    // Only clear provider if user actually removes image
-    ref.read(profileImageProvider.notifier).state = '';
+    if (uid != null) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove('profile_image_path_$uid');
+      ref.read(profileImageProvider.notifier).state = '';
+    }
   }
 
   Future<void> _putImageToSupabaseStorage(File imageFile) async {
     final supabase = sb.Supabase.instance.client;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return; // safety first
 
     try {
@@ -371,16 +453,17 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
       debugPrint('rawPath → $filePath');
 
       // 2. getPublicUrl → synchronous String
-      final publicUrl = supabase.storage
+
+      publicUrl = supabase.storage
           .from('profileimages')
           .getPublicUrl('uploads/$uid.jpg');
 
       try {
-// 🔥 Save public URL locally for reuse
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('profile_image_url', publicUrl);
+        // 🔥 Save public URL locally for reuse
+        // final prefs = await SharedPreferences.getInstance();
+        // await prefs.setString('profile_image_url', publicUrl);
 
-// 🧠 Update provider too if needed
+        // 🧠 Update provider too if needed
         ref.read(profileImageProvider.notifier).state = publicUrl;
       } catch (e) {
         debugPrint('❌ Error storing image info to sharedpreferences: $e');
@@ -388,31 +471,41 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
 
       // 3. update + select → returns List<Map<String, dynamic>>
       //    throws a PostgrestException on RLS or network errors
-      final updatedRows = await supabase
-          .from('employerProfiles')
-          .update({'profileImage': publicUrl})
-          .eq('firebase_uid', uid)
-          .select(); // returns List<Map<String,dynamic>> :contentReference[oaicite:0]{index=0}
+      // final updatedRows = await supabase
+      //     .from('employerProfiles')
+      //     .update({'profileImage': publicUrl})
+      //     .eq('firebase_uid', uid)
+      //     .select();
 
-      if (updatedRows.isEmpty) {
-        debugPrint('❌ No profile row was updated');
-      } else {
-        debugPrint('✅ Profile updated, sample return: ${updatedRows.first}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image uploaded to supabase')),
-        );
+      // 4. Update Firestore senderImageUrl for chat display
+      try {
+        await FirebaseFirestore.instance
+            .collection('employerProfiles')
+            .doc(uid)
+            .update({'senderImageUrl': publicUrl});
+      } catch (e) {
+        debugPrint('❌ Error uploading profile image url to  Firestore: $e');
       }
+
+      // if (updatedRows.isEmpty) {
+      //   debugPrint('❌ No profile row was updated');
+      // } else {
+      //   debugPrint('✅ Profile updated, sample return: \\${updatedRows.first}');
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(content: Text('Image uploaded to supabase')),
+      //   );
+      // }
     } on sb.PostgrestException catch (e) {
       // catches RLS / HTTP / Postgrest errors
-      debugPrint('❌ Supabase error: ${e.message}');
+      debugPrint('❌ Supabase error: \\${e.message}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Supabase error: ${e.message}')),
+        SnackBar(content: Text('Supabase error: \\${e.message}')),
       );
     } catch (e) {
       // catches any other errors (e.g. file IO)
-      debugPrint('🔥 Unexpected error: $e');
+      debugPrint('🔥 Unexpected error: \\${e}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unexpected error: $e')),
+        SnackBar(content: Text('Unexpected error: \\${e}')),
       );
     }
   }
@@ -716,12 +809,270 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
     );
   }
 
+  Widget _buildProfileCompletionSection() {
+    // 3 additional fields for completion:
+    final additionalFields = <String, String>{
+      'Experience': workerData['experience'] ?? '',
+      'Fee': workerData['fee'] ?? '',
+      'Availability': workerData['availability'] ?? '',
+    };
+    final missingAdditional = additionalFields.entries
+        .where((entry) => entry.value.isEmpty)
+        .map((entry) => entry.key)
+        .toList();
+    final completedCount = additionalFields.length - missingAdditional.length;
+    final percent = ((completedCount / additionalFields.length) * 100).round();
+    final isComplete = missingAdditional.isEmpty;
+
+    if (isComplete) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        border: Border.all(color: Colors.orangeAccent),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              color: Colors.orange, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profile completion: $percent%',
+                  style: TextStyle(
+                    color: Colors.orange.shade900,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Add the following to complete your professional profile: ${missingAdditional.join(', ')}',
+                  style: TextStyle(color: Colors.orange.shade900, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orangeAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    _showCompleteProfileModal(missingAdditional);
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Complete Profile'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCompleteProfileModal(List<String> missingFields) {
+    final theme = Theme.of(context);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    // Controllers for text fields
+    final feeController = TextEditingController();
+    // State variables for pickers
+    int? selectedExperience;
+    TimeOfDay? startTime;
+    TimeOfDay? endTime;
+    final List<String> selectedDays = [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                  left: 16,
+                  right: 16,
+                  top: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Complete Profile',
+                          style: theme.textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    ],
+                  ),
+                  const Divider(),
+                  if (missingFields.contains('Experience')) ...[
+                    const _SectionHeader(
+                      icon: Icons.work_history,
+                      title: "Years of Experience",
+                    ),
+                    DropdownButtonFormField<int>(
+                      value: selectedExperience,
+                      decoration: const InputDecoration(
+                        hintText: "Select experience",
+                        border: OutlineInputBorder(),
+                      ),
+                      items: List.generate(10, (i) => i + 1)
+                          .map((years) => DropdownMenuItem(
+                                value: years,
+                                child: Text(
+                                    "$years ${years > 1 ? 'years' : 'year'}"),
+                              ))
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => selectedExperience = value),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (missingFields.contains('Fee')) ...[
+                    const _SectionHeader(
+                      icon: Icons.attach_money,
+                      title: "Service Fee",
+                    ),
+                    TextFormField(
+                      controller: feeController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        prefixText: "Rs. ",
+                        hintText: "Enter fee per visit",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (missingFields.contains('Availability')) ...[
+                    const _SectionHeader(
+                      icon: Icons.access_time,
+                      title: "Working Hours",
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _TimePickerButton(
+                            label: "Start Time",
+                            time: startTime,
+                            onPressed: () async {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.now(),
+                              );
+                              if (time != null) {
+                                setState(() => startTime = time);
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _TimePickerButton(
+                            label: "End Time",
+                            time: endTime,
+                            onPressed: () async {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.now(),
+                              );
+                              if (time != null) setState(() => endTime = time);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      children:
+                          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                              .map((day) => FilterChip(
+                                    label: Text(day),
+                                    selected: selectedDays.contains(day),
+                                    onSelected: (selected) => setState(() {
+                                      if (selected) {
+                                        selectedDays.add(day);
+                                      } else {
+                                        selectedDays.remove(day);
+                                      }
+                                    }),
+                                  ))
+                              .toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    onPressed: () async {
+                      final updates = <String, String>{};
+                      if (missingFields.contains('Experience') &&
+                          selectedExperience != null) {
+                        updates['experience'] = '$selectedExperience years';
+                      }
+                      if (missingFields.contains('Fee') &&
+                          feeController.text.isNotEmpty) {
+                        updates['fee'] = 'Rs. ${feeController.text}';
+                      }
+                      if (missingFields.contains('Availability')) {
+                        if (startTime != null && endTime != null) {
+                          updates['availability'] =
+                              '${startTime!.format(context)} - ${endTime!.format(context)}';
+                        }
+                        if (selectedDays.isNotEmpty) {
+                          updates['working_days'] = 'selectedDays';
+                        }
+                      }
+                      if (updates.isNotEmpty && uid != null) {
+                        await FirebaseFirestore.instance
+                            .collection('workerProfiles')
+                            .doc(uid)
+                            .update(updates);
+                        setState(() => workerData.addAll(updates));
+                      }
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                      await _loadProfileData();
+                    },
+                    child: const Text('Save Profile Details'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Helper Widgets
+
   // ---------------------------
   // Firebase & Form Logic
   // ---------------------------
+  // final uid = FirebaseAuth.instance.currentUser?.uid;
+
   void _toggleProfileType() async {
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -775,59 +1126,82 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   }
 
   Future<void> _saveProfile() async {
-    final original = pickedImage;
-    // 1. Copy to app dir
-    final appDir = await getApplicationDocumentsDirectory();
-    final filename =
-        '${DateTime.now().millisecondsSinceEpoch}_${FirebaseAuth.instance.currentUser!.uid}.jpg';
-    final savedFile = await original?.copy('${appDir.path}/$filename');
-
-    // 2. Store that local path
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('local_profile_image', savedFile?.path ?? '');
-
-    // 3. Upload to Supabase
-    await _putImageToSupabaseStorage(savedFile!);
-    if (!_formKey.currentState!.validate()) return;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not authenticated.')));
-      return;
-    }
-
-    Map<String, String> updatedData = {
-      'name': _nameController.text.trim(),
-      'email': _emailController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'location': _locationController.text.trim(),
-      'role': _roleController.text.trim(),
-      'about': _aboutController.text.trim(),
-      'type': activeProfileData['type']!,
-    };
-
+    setState(() => _isSaving = true);
     try {
-      String collection = isEmployer ? 'employerProfiles' : 'workerProfiles';
-      await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(uid)
-          .set(updatedData);
-
-      setState(() {
-        if (isEmployer) {
-          employerData = updatedData;
-        } else {
-          workerData = updatedData;
-        }
-        _isEditing = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully.')));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Save failed: $e")));
+      final original = pickedImage;
+      if (uid == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User not authenticated.')));
+        setState(() => _isSaving = false);
+        return;
       }
+      // 1. Copy to app dir if a new image was picked
+      File? imageToSave = original ?? _imageFile;
+      String? imagePath;
+      if (imageToSave != null) {
+        final appDir = await getApplicationDocumentsDirectory();
+        final filename = '$uid.jpg';
+        final savedFile = await imageToSave.copy('${appDir.path}/$filename');
+        imagePath = savedFile.path;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profile_image_path_$uid', imagePath);
+      }
+      // Only require an image if there is none at all
+      if (imageToSave == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please select a profile image before saving.')),
+        );
+        setState(() => _isSaving = false);
+        return;
+      }
+      // 3. Upload to Supabase
+      await _putImageToSupabaseStorage(imageToSave);
+      if (!_formKey.currentState!.validate()) {
+        setState(() => _isSaving = false);
+        return;
+      }
+      Map<String, String> updatedData = {
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'location': _locationController.text.trim(),
+        'role': _roleController.text.trim(),
+        'about': _aboutController.text.trim(),
+        'type': activeProfileData['type']!,
+        'profileImageUrl': publicUrl ?? '',
+      };
+      try {
+        String collection = isEmployer ? 'employerProfiles' : 'workerProfiles';
+        await FirebaseFirestore.instance
+            .collection(collection)
+            .doc(uid)
+            .set(updatedData);
+        // Update cache after save
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profile_email_$uid', updatedData['email'] ?? '');
+        await prefs.setString('profile_phone_$uid', updatedData['phone'] ?? '');
+        await prefs.setString(
+            'profile_location_$uid', updatedData['location'] ?? '');
+        await prefs.setString('profile_about_$uid', updatedData['about'] ?? '');
+        setState(() {
+          if (isEmployer) {
+            employerData = updatedData;
+          } else {
+            workerData = updatedData;
+          }
+          _isEditing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully.')));
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text("Save failed: $e")));
+        }
+      }
+    } finally {
+      setState(() => _isSaving = false);
     }
   }
 
@@ -849,10 +1223,65 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
               workerData = profileData;
               isEmployer = false;
             });
-            Navigator.pop(context);
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
             _updateControllers();
           },
         ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  const _SectionHeader({required this.icon, required this.title});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimePickerButton extends StatelessWidget {
+  final String label;
+  final TimeOfDay? time;
+  final VoidCallback onPressed;
+  const _TimePickerButton({
+    required this.label,
+    required this.time,
+    required this.onPressed,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+      onPressed: onPressed,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.access_time, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            time != null ? time!.format(context) : label,
+            style: TextStyle(
+                color: time != null
+                    ? Theme.of(context).primaryColor
+                    : Theme.of(context).hintColor),
+          ),
+        ],
       ),
     );
   }

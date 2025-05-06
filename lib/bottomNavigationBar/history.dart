@@ -165,7 +165,6 @@ class _JobCard extends StatelessWidget {
     required this.job,
     required this.lightColorPro,
     required this.lightDarkColorPro,
-    super.key,
   });
 
   @override

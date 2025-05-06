@@ -18,11 +18,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers.dart'; // import your provider
+import 'package:flutter/services.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Color(0xFFB3E5FC), // light blue
+    statusBarIconBrightness: Brightness.dark, // dark icons for light background
+  ));
   await Firebase.initializeApp();
   FirebaseFirestore.instance.settings =
       const Settings(persistenceEnabled: true);
@@ -38,6 +44,11 @@ void main() async {
     anonKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjbHN0cHBsamVlbGNtYW9lamJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwMzEyNjgsImV4cCI6MjA2MDYwNzI2OH0.a7pKTr7NX0j6v_MLrcXuFUmnxPPXKoKn8uMaQSBEzek',
   );
+  // await FirebaseAppCheck.instance.activate(
+  //   androidProvider: AndroidProvider.debug,
+  // );
+  // String? token = await FirebaseAppCheck.instance.getToken();
+  // debugPrint('🤣App Check token: $token');
 
   runApp(
     ProviderScope(
@@ -180,6 +191,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+      ),
       navigatorObservers: [routeObserver],
       onGenerateRoute: generateRoute,
       initialRoute: '/',

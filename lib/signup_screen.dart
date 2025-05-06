@@ -17,15 +17,17 @@ class SignupScreenState extends State<SignupScreen> {
 
   Future<bool> _signUp(String email, String password) async {
     try {
-      await auth.createUserWithEmailAndPassword(email: email, password: password);
+      await auth.createUserWithEmailAndPassword(
+          email: email, password: password);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('User created successfully!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User created successfully!')));
       }
       return true; // Return true if signup is successful
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
       return false; // Return false if signup failed
     }
@@ -37,7 +39,8 @@ class SignupScreenState extends State<SignupScreen> {
         backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: Colors.white,
-          title: const Text('SignUp', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          title: const Text('SignUp',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         ),
         body: SingleChildScrollView(
           child: Padding(
@@ -60,27 +63,32 @@ class SignupScreenState extends State<SignupScreen> {
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.person),
                     labelText: 'Username ',
-                    labelStyle:
-                        const TextStyle(color: Colors.grey, fontSize: 16), // Custom label style
+                    labelStyle: const TextStyle(
+                        color: Colors.grey, fontSize: 16), // Custom label style
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10), // Rounded corners
+                      borderRadius:
+                          BorderRadius.circular(10), // Rounded corners
                       borderSide: const BorderSide(
-                          color: Colors.orangeAccent, width: 2), // Border color and thickness
+                          color: Colors.orangeAccent,
+                          width: 2), // Border color and thickness
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(
-                          color: Colors.orangeAccent, width: 2), // Border color when focused
+                          color: Colors.orangeAccent,
+                          width: 2), // Border color when focused
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(
-                          color: Colors.grey, width: 1), // Border color when not focused
+                          color: Colors.grey,
+                          width: 1), // Border color when not focused
                     ),
                     filled: true,
                     fillColor: Colors.white, // Background color
                     contentPadding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 15), // Padding inside the text field
+                        vertical: 10,
+                        horizontal: 15), // Padding inside the text field
                   ),
                 ),
                 const SizedBox(
@@ -97,31 +105,37 @@ class SignupScreenState extends State<SignupScreen> {
                             _isPasswordHidden = !_isPasswordHidden;
                           });
                         },
-                        icon: Icon(
-                            _isPasswordHidden == true ? Icons.visibility : Icons.visibility_off)),
+                        icon: Icon(_isPasswordHidden == true
+                            ? Icons.visibility
+                            : Icons.visibility_off)),
 
                     labelText: 'Password ',
-                    labelStyle:
-                        const TextStyle(color: Colors.grey, fontSize: 16), // Custom label style
+                    labelStyle: const TextStyle(
+                        color: Colors.grey, fontSize: 16), // Custom label style
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10), // Rounded corners
+                      borderRadius:
+                          BorderRadius.circular(10), // Rounded corners
                       borderSide: const BorderSide(
-                          color: Colors.orangeAccent, width: 2), // Border color and thickness
+                          color: Colors.orangeAccent,
+                          width: 2), // Border color and thickness
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(
-                          color: Colors.orangeAccent, width: 2), // Border color when focused
+                          color: Colors.orangeAccent,
+                          width: 2), // Border color when focused
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(
-                          color: Colors.grey, width: 1), // Border color when not focused
+                          color: Colors.grey,
+                          width: 1), // Border color when not focused
                     ),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 15), // Padding inside the text field
+                        vertical: 10,
+                        horizontal: 15), // Padding inside the text field
                   ),
                 ),
                 const SizedBox(
@@ -132,8 +146,8 @@ class SignupScreenState extends State<SignupScreen> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () async {
-                        bool signUpSuccess =
-                            await _signUp(_emailController.text, _passwordController.text);
+                        bool signUpSuccess = await _signUp(
+                            _emailController.text, _passwordController.text);
                         if (signUpSuccess && context.mounted) {
                           // Only navigate if signup was successful
                           Navigator.pushNamed(context, 'roleSelectionPage');
@@ -238,7 +252,8 @@ class SignupScreenState extends State<SignupScreen> {
                         const SizedBox(
                           width: 10,
                         ),
-                        const Text('SignUp with Google', style: TextStyle(color: Colors.black)),
+                        const Text('SignUp with Google',
+                            style: TextStyle(color: Colors.black)),
                       ],
                     ),
                   ),
@@ -257,14 +272,16 @@ Future<User?> signInWithGoogle(BuildContext context) async {
     final GoogleSignInAccount? userInfo = await googleSignIn.signIn();
 
     if (userInfo != null) {
-      final GoogleSignInAuthentication googleAuth = await userInfo.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await userInfo.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
       // Sign in with the credential
-      final UserCredential userCredential = await auth.signInWithCredential(credential);
+      final UserCredential userCredential =
+          await auth.signInWithCredential(credential);
 
       if (userCredential.user != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -275,7 +292,8 @@ Future<User?> signInWithGoogle(BuildContext context) async {
       return userCredential.user; // Return the signed-in user
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google Sign-in was cancelled by the user')),
+        const SnackBar(
+            content: Text('Google Sign-in was cancelled by the user')),
       );
       return null; // User cancelled the sign-in process
     }

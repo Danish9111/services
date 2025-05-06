@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:services/providers.dart'; // Make sure this file exports darkColorProvider and lightColorProvider
 
@@ -86,9 +87,9 @@ class MessagePageState extends ConsumerState<MessagePage> {
 
       // Commit the batch
       await batch.commit();
-      print('Successfully removed isRead field from Firebase');
+      debugPrint('Successfully removed isRead field from Firebase');
     } catch (e) {
-      print('Error removing isRead field from Firebase: $e');
+      debugPrint('Error removing isRead field from Firebase: $e');
     }
   }
 
@@ -222,13 +223,58 @@ class MessagePageState extends ConsumerState<MessagePage> {
                           title: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: lightColorPro,
-                                child: Image.network(
-                                  data['senderPhoto'] ?? '',
-                                  fit: BoxFit.cover,
-                                ),
+                              FutureBuilder<DocumentSnapshot>(
+                                future: FirebaseFirestore.instance
+                                    .collection('employerProfiles')
+                                    .doc(data['senderId'])
+                                    .get(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: Colors.grey,
+                                      child: Icon(Icons.person,
+                                          color: Colors.white),
+                                    );
+                                  }
+                                  if (snapshot.hasData &&
+                                      snapshot.data != null &&
+                                      snapshot.data!.exists) {
+                                    debugPrint('👌your snapshot has data');
+                                    final profileData = snapshot.data!.data()
+                                        as Map<String, dynamic>;
+                                    final imageUrl =
+                                        profileData['profileImageUrl']
+                                            as String?;
+                                    if (imageUrl != null &&
+                                        imageUrl.isNotEmpty) {
+                                      if (imageUrl.startsWith('http')) {
+                                        debugPrint(
+                                            '✅your image is from the web');
+                                        return CircleAvatar(
+                                          radius: 18,
+                                          backgroundImage:
+                                              NetworkImage(imageUrl),
+                                        );
+                                      } else {
+                                        return CircleAvatar(
+                                          radius: 18,
+                                          backgroundImage:
+                                              FileImage(File(imageUrl)),
+                                        );
+                                      }
+                                    }
+                                  }
+                                  // debugPrint('no image found');
+
+                                  return const CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: Colors.grey,
+                                    child:
+                                        Icon(Icons.person, color: Colors.white),
+                                  );
+                                },
                               ),
                               Expanded(
                                 child: Padding(

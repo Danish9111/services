@@ -122,6 +122,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
     setState(() => _isSending = true);
     final messageText = _controller.text.trim();
     final chatId = getChatId(_currentUserId, widget.receiverId);
+    final senderImageUrl = ref.read(profileImageProvider);
 
     try {
       // Prepare message data without isRead
@@ -132,6 +133,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
         'status': 'sent',
         'text': messageText,
         'timestamp': Timestamp.now(),
+        'senderImageUrl': senderImageUrl,
       };
 
       // Add to Firestore
@@ -188,6 +190,10 @@ class ChatScreenState extends ConsumerState<ChatScreen>
     final lightDarkPro = ref.watch(lightDarkColorProvider);
     final darkColorPro = ref.watch(darkColorProvider);
     final lightColorPro = ref.watch(lightColorProvider);
+    final isDark = ref.watch(isDarkProvider);
+    const darkColor = Color.fromARGB(255, 63, 72, 76);
+
+    // final senderImageUrl = ref.watch(profileImageProvider);
 
     final chatId = getChatId(_currentUserId, widget.receiverId);
     // Conditionally set the stream based on the viewing flag.
@@ -211,14 +217,15 @@ class ChatScreenState extends ConsumerState<ChatScreen>
         child: Scaffold(
           backgroundColor: lightDarkPro,
           appBar: AppBar(
-              iconTheme: const IconThemeData(color: Colors.white),
-              toolbarHeight: 70,
-              elevation: 4,
               shape: const RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.vertical(bottom: Radius.circular(20))),
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(20)),
+              ),
+              // surfaceTintColor: darkColorPro,
+              backgroundColor: darkColor,
+              toolbarHeight: 80,
+              elevation: 4,
               centerTitle: true,
-              backgroundColor: const Color.fromARGB(255, 63, 72, 76),
               title: Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
@@ -227,22 +234,53 @@ class ChatScreenState extends ConsumerState<ChatScreen>
                   children: [
                     Row(
                       children: [
-                        _photoUrl != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: Image.network(
-                                  _photoUrl!,
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.account_circle,
-                                size: 40,
-                                color: Colors.white,
-                              ),
-                        const SizedBox(width: 5),
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('employerProfiles')
+                              .doc(widget.receiverId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircleAvatar(
+                                radius: 20,
+                                backgroundColor: Colors.grey,
+                                child: Icon(Icons.person, color: Colors.white),
+                              );
+                            }
+                            if (snapshot.hasData &&
+                                snapshot.data != null &&
+                                snapshot.data!.exists) {
+                              debugPrint('you have data atleast 👌');
+                              final data =
+                                  snapshot.data!.data() as Map<String, dynamic>;
+                              final imageUrl =
+                                  data['profileImageUrl'] as String?;
+                              if (imageUrl != null && imageUrl.isNotEmpty) {
+                                debugPrint('you are right there ✅');
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Image.network(
+                                    imageUrl,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(Icons.person,
+                                                size: 40, color: Colors.white),
+                                  ),
+                                );
+                              }
+                            }
+                            return const Icon(
+                              Icons.account_circle,
+                              size: 40,
+                              color: Colors.white,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 15),
                         Expanded(
                           child: Text(
                             _name.isEmpty ? 'Loading...' : _name,
@@ -256,20 +294,22 @@ class ChatScreenState extends ConsumerState<ChatScreen>
                         ),
                       ],
                     ),
+                    const SizedBox(height: 5),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 5),
                       child: Text(
                         _isReceiverOnline
                             ? 'Online'
                             : lastSeen != null
-                                ? 'Last seen ${formatLastSeen(lastSeen)}'
+                                ? '${formatLastSeen(lastSeen)}'
                                 : 'Loading...',
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: Colors.white,
                           fontSize: 12,
                         ),
                       ),
-                    )
+                    ),
+                    const SizedBox(height: 5),
                   ],
                 ),
               )),
@@ -280,7 +320,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
               children: [
                 Expanded(
                   child: chatStream == null
-                      ? const Center(child: Text('Chat inactive'))
+                      ? PoorInternetConnection()
                       : StreamBuilder<QuerySnapshot>(
                           stream: chatStream,
                           builder: (context, snapshot) {
@@ -364,6 +404,20 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   }
 }
 
+Widget PoorInternetConnection() {
+  return const Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.wifi_off, size: 50, color: Colors.grey),
+        SizedBox(height: 10),
+        Text('Poor Internet Connection',
+            style: TextStyle(fontSize: 16, color: Colors.grey)),
+      ],
+    ),
+  );
+}
+
 class _ChatBubble extends StatelessWidget {
   final String text;
   final bool isMe;
@@ -387,7 +441,7 @@ class _ChatBubble extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        color: isMe ? Colors.blueAccent : Colors.grey.shade300,
+        color: isMe ? Colors.blueAccent.shade200 : Colors.grey.shade300,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(16),
           topRight: const Radius.circular(16),
@@ -464,7 +518,7 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-class _MessageInput extends StatelessWidget {
+class _MessageInput extends ConsumerWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
   final bool isSending;
@@ -478,22 +532,21 @@ class _MessageInput extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lightColor = ref.watch(lightColorProvider);
+    final darkColor = ref.watch(darkColorProvider);
+    final isdark = ref.watch(isDarkProvider);
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
+            color: !isdark ? darkColor : lightColor,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: !isdark ? lightColor : darkColor,
+              width: 1,
+            )),
         child: Row(
           children: [
             Expanded(
@@ -554,7 +607,7 @@ String formatLastSeen(AsyncValue<DateTime> asyncLastSeen) {
         return '${DateFormat.yMd().format(lastSeen)} ${DateFormat.jm().format(lastSeen)}';
       }
     },
-    loading: () => 'Last seen: ----',
+    loading: () => 'Last seen : Loading...',
     error: (error, stack) => 'Error fetching last seen',
   );
 }

@@ -25,13 +25,15 @@ class PopularServices extends StatelessWidget {
     },
   ];
 
+  PopularServices({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: GridView.builder(
         shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
+        physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 12,
@@ -60,10 +62,10 @@ class PopularServices extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(service['icon'], size: 40, color: Colors.black87),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     service['title'],
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
