@@ -33,6 +33,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   bool _isReceiverOnline = false;
   bool _isOnline = false;
   String? _photoUrl;
+  late StreamSubscription<DatabaseEvent> _receiverPresenceSubscription;
 
   String _name = '';
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
@@ -97,6 +98,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription.cancel();
+    _receiverPresenceSubscription.cancel();
     super.dispose();
   }
 
@@ -106,6 +108,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
         .collection('workerProfiles')
         .doc(widget.receiverId)
         .get();
+    if (!mounted) return;
     if (docSnapshot.exists) {
       setState(() {
         _name = docSnapshot.get('name');
@@ -160,10 +163,11 @@ class ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   void listenForReceiverPresence() {
-    FirebaseDatabase.instance
+    _receiverPresenceSubscription = FirebaseDatabase.instance
         .ref('users/${widget.receiverId}/online')
         .onValue
         .listen((event) {
+      if (!mounted) return;
       setState(() {
         _isReceiverOnline = event.snapshot.value == true;
       });
@@ -209,6 +213,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
     return VisibilityDetector(
         key: const Key('chat-screen-key'),
         onVisibilityChanged: (visibilityInfo) {
+          if (!mounted) return;
           final visiblePercentage = visibilityInfo.visibleFraction * 100;
           setState(() {
             _isViewingChat = visiblePercentage > 50;
@@ -236,7 +241,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
                       children: [
                         StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
-                              .collection('employerProfiles')
+                              .collection('workerProfiles')
                               .doc(widget.receiverId)
                               .snapshots(),
                           builder: (context, snapshot) {
@@ -301,7 +306,7 @@ class ChatScreenState extends ConsumerState<ChatScreen>
                         _isReceiverOnline
                             ? 'Online'
                             : lastSeen != null
-                                ? '${formatLastSeen(lastSeen)}'
+                                ? formatLastSeen(lastSeen)
                                 : 'Loading...',
                         style: const TextStyle(
                           color: Colors.white,

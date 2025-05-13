@@ -1,30 +1,20 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:services/bottomNavigationBar/customBottomNavigationBar.dart';
+import 'package:services/messaging/chatScreen.dart';
 import 'package:services/providers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-final professionalProvider = Provider<Professional>((ref) {
-  return Professional(
-    name: 'Ali Khan',
-    rating: 4.5,
-    role: 'AC Technician',
-    location: 'Lahore, Gulberg',
-    experience: '5 Years',
-    services: 'Window AC, Split AC',
-    fee: 'Rs. 1500 / Visit',
-    radius: '10 km',
-    availability: '10am–7pm',
-    verifiedBy: 'XYZ Institute',
-    review1: '“Very polite and quick service!”',
-    review2: '“Affordable and professional.”',
-  );
-});
+final uid = FirebaseAuth.instance.currentUser?.uid;
 
 class Professional {
   final String name,
       role,
       location,
       experience,
+      profileImageUrl,
       services,
       fee,
       radius,
@@ -39,6 +29,7 @@ class Professional {
     required this.rating,
     required this.role,
     required this.location,
+    required this.profileImageUrl,
     required this.experience,
     required this.services,
     required this.fee,
@@ -92,6 +83,7 @@ class ProfessionalDetailPage extends HookConsumerWidget {
                 : 'Professional',
             rating: (data['rating'] ?? 0).toDouble(),
             role: data['role'] ?? '',
+            profileImageUrl: data['profileImageUrl'] ?? '',
             location: data['location'] ?? '',
             experience: data['experience'] ?? '',
             services: data['services'] ?? '',
@@ -122,7 +114,7 @@ class ProfessionalDetailPage extends HookConsumerWidget {
                         ReviewsSection(professional: pro, textColor: textColor),
                       ],
                       const SizedBox(height: 20),
-                      const ActionButtons(),
+                      ActionButtons(professionalId: professionalId),
                     ],
                   ),
                 ),
@@ -150,9 +142,12 @@ class ProfileHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        const SizedBox(width: 20),
         CircleAvatar(
           radius: 40,
-          backgroundImage: const AssetImage('assets/profile_pic.jpeg'),
+          backgroundImage: professional.profileImageUrl.isNotEmpty
+              ? NetworkImage(professional.profileImageUrl)
+              : const AssetImage('assets/default_pic.png') as ImageProvider,
           backgroundColor: Colors.grey[200],
         ),
         const SizedBox(width: 20),
@@ -221,26 +216,37 @@ class InfoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final infoItems = <Widget>[];
 
-    void addInfoItem(IconData icon, String text) {
+    void addInfoItem(IconData icon, String text, String label) {
       if (text.isNotEmpty) {
-        infoItems.add(_InfoRow(icon: icon, text: text, color: textColor));
+        infoItems.add(
+          _InfoRow(
+            icon: icon,
+            text: text,
+            color: textColor,
+            label: label,
+          ),
+        );
       }
     }
 
-    addInfoItem(Icons.location_on, professional.location);
-    addInfoItem(Icons.calendar_today, professional.experience);
-    addInfoItem(Icons.handyman, professional.services);
-    addInfoItem(Icons.attach_money, professional.fee);
+    addInfoItem(Icons.location_on, professional.location, 'Location');
+    addInfoItem(Icons.calendar_today, professional.experience, 'Experience');
+    addInfoItem(Icons.handyman, professional.services, 'Services');
+    addInfoItem(Icons.attach_money, professional.fee, 'Fee');
     addInfoItem(
-        Icons.directions_car,
-        professional.radius.isNotEmpty
-            ? 'Travel Radius ${professional.radius}'
-            : '');
+      Icons.directions_car,
+      professional.radius.isNotEmpty
+          ? 'Travel Radius ${professional.radius}'
+          : '',
+      'Radius',
+    );
     addInfoItem(
-        Icons.schedule,
-        professional.availability.isNotEmpty
-            ? 'Availability ${professional.availability}'
-            : '');
+      Icons.schedule,
+      professional.availability.isNotEmpty
+          ? ' ${professional.availability}'
+          : '',
+      'Availability',
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,29 +283,41 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;
   final Color color;
+  final String label;
 
   const _InfoRow({
     required this.icon,
     required this.text,
     required this.color,
+    required this.label,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: color, fontSize: 15),
-            ),
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: color,
+          size: 20, // Increased icon size
+        ),
+        const SizedBox(width: 8), // Slightly more space between icon and text
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color,
+            fontSize: 16, // Increased label font size
           ),
-        ],
-      ),
+        ),
+        Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 16, // Increased text font size
+          ),
+        ),
+      ],
     );
   }
 }
@@ -380,37 +398,149 @@ class _ReviewCard extends StatelessWidget {
 }
 
 class ActionButtons extends StatelessWidget {
-  const ActionButtons({super.key});
+  const ActionButtons({super.key, required this.professionalId});
+  final String professionalId;
+  Future<void> createTask({
+    // required String professionalId,
+    required String taskDetails,
+  }) async {
+    final taskCollection = FirebaseFirestore.instance.collection('task');
+    final docRef = taskCollection.doc(); // create a doc with custom ID
+
+    await docRef.set({
+      'taskId': docRef.id, // saving taskId inside task itself
+      'professionalId': professionalId,
+      'employerId': uid, // assuming uid is declared globally
+      'taskDetails': taskDetails,
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'pending',
+      'acceptedByWorker': false,
+      'acceptedByEmployer': false,
+    });
+  }
+
+  showdialog({
+    required BuildContext context,
+    required String title,
+    required String content,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> canAssignTask(String professionalId) async {
+    final taskCollection = FirebaseFirestore.instance.collection('task');
+
+    final existingTasks = await taskCollection
+        .where('professionalId', isEqualTo: professionalId)
+        .where('employerId', isEqualTo: uid)
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    return existingTasks
+        .docs.isNotEmpty; // true = can assign, false = already assigned
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.orangeAccent,
-              side: const BorderSide(color: Colors.orangeAccent),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.orangeAccent,
+                  side: const BorderSide(color: Colors.orangeAccent),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {},
+                icon: const Icon(Icons.call, color: Colors.orangeAccent),
+                label: const Text('Call'),
+              ),
             ),
-            onPressed: () {},
-            icon: const Icon(Icons.call, color: Colors.orangeAccent),
-            label: const Text('Call'),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orangeAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        receiverId: professionalId,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.chat, color: Colors.white),
+                label: const Text('Chat'),
+              ),
+            )
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orangeAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            onPressed: () {},
-            icon: const Icon(Icons.chat, color: Colors.white),
-            label: const Text('Chat'),
-          ),
-        )
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                try {
+                  if (await canAssignTask(professionalId)) {
+                    showdialog(
+                      context: context,
+                      title: 'Task already assigned',
+                      content:
+                          'You have already assigned a task to this professional.Please check your history.',
+                    );
+                    return;
+                  }
+                  await createTask(
+                    taskDetails: 'Fix AC',
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✅Task Assigned')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('❌ Error assigning task: $e')),
+                  );
+                }
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.assignment, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'Assign Task',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              )),
+        ),
       ],
     );
   }

@@ -122,10 +122,6 @@ class MessagePageState extends ConsumerState<MessagePage> {
         ),
         centerTitle: true,
         backgroundColor: darkColor,
-        // iconTheme: IconThemeData(color: lightColorPro),
-        actions: [
-          _buildStatusFilter(darkColor, lightColorPro),
-        ],
       ),
       backgroundColor: darkColorPro,
       body: _isActive
@@ -225,7 +221,7 @@ class MessagePageState extends ConsumerState<MessagePage> {
                             children: [
                               FutureBuilder<DocumentSnapshot>(
                                 future: FirebaseFirestore.instance
-                                    .collection('employerProfiles')
+                                    .collection('workerProfiles')
                                     .doc(data['senderId'])
                                     .get(),
                                 builder: (context, snapshot) {
@@ -351,56 +347,4 @@ class MessagePageState extends ConsumerState<MessagePage> {
           : const Center(child: CircularProgressIndicator()),
     );
   }
-
-  Widget _buildStatusFilter(Color darkColor, Color lightColor) {
-    return PopupMenuButton<JobStatus>(
-      onSelected: (status) => setState(() {}),
-      itemBuilder: (_) => JobStatus.values.map((status) {
-        return PopupMenuItem<JobStatus>(
-          value: status,
-          child: Row(
-            children: [
-              Icon(
-                status.icon,
-                color: status.backgroundColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                status.label,
-                style: TextStyle(color: lightColor),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-      color: darkColor,
-      icon: Padding(
-        padding: const EdgeInsets.only(right: 20, bottom: 20),
-        child: Icon(
-          Icons.filter_list,
-          color: lightColor,
-        ),
-      ),
-    );
-  }
-}
-
-enum JobStatus {
-  all('All', Icons.all_inclusive, Colors.grey, Colors.grey),
-  completed('Completed', Icons.check_circle, Colors.green, Colors.white),
-  inProgress('In Progress', Icons.access_time, Colors.orange, Colors.white),
-  cancelled('Cancelled', Icons.cancel, Colors.red, Colors.white);
-
-  final String label;
-  final IconData icon;
-  final Color backgroundColor;
-  final Color textColor;
-
-  const JobStatus(
-    this.label,
-    this.icon,
-    this.backgroundColor,
-    this.textColor,
-  );
 }

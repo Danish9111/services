@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:services/providers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class JobHistoryPage extends ConsumerStatefulWidget {
   const JobHistoryPage({super.key});
@@ -11,38 +13,65 @@ class JobHistoryPage extends ConsumerStatefulWidget {
 }
 
 class _JobHistoryPageState extends ConsumerState<JobHistoryPage> {
-  final List<JobHistory> _jobs = [
-    JobHistory(
-      id: '1',
-      title: 'Electrical Wiring Installation',
-      client: 'John Smith',
-      date: DateTime(2024, 3, 15, 14, 30),
-      status: JobStatus.completed,
-      amount: 450.0,
-      location: 'Manhattan, NY',
-    ),
-    JobHistory(
-      id: '2',
-      title: 'Emergency Pipe Repair',
-      client: 'Sarah Johnson',
-      date: DateTime(2024, 3, 14, 9, 15),
-      status: JobStatus.inProgress,
-      amount: 280.0,
-      location: 'Brooklyn, NY',
-    ),
-    JobHistory(
-      id: '3',
-      title: 'Commercial Painting Service',
-      client: 'Office Solutions Inc.',
-      date: DateTime(2024, 3, 12, 16, 0),
-      status: JobStatus.cancelled,
-      amount: 1200.0,
-      location: 'Queens, NY',
-    ),
-  ];
-
+  List<JobHistory> _jobs = [];
   JobStatus _filterStatus = JobStatus.all;
-  final bool _isLoading = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchJobsFromFirestore();
+  }
+
+  Future<void> _fetchJobsFromFirestore() async {
+    setState(() { _isLoading = true; });
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final taskSnapshot = await FirebaseFirestore.instance
+        .collection('task')
+        .where('professionalId', isEqualTo: uid)
+        .get();
+    final jobs = await Future.wait(taskSnapshot.docs.map((doc) async {
+      final data = doc.data();
+      // Fetch sender info
+      String senderName = '';
+      if (data['employerId'] != null) {
+        final senderDoc = await FirebaseFirestore.instance
+            .collection('workerProfiles')
+            .doc(data['employerId'])
+            .get();
+        senderName = senderDoc.data()?['name'] ?? '';
+      }
+      return JobHistory(
+        id: doc.id,
+        title: data['taskDetails'] ?? 'No Title',
+        client: senderName,
+        date: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        status: _mapStatus(data['status']),
+        amount: (data['amount'] ?? 0).toDouble(),
+        location: data['location'] ?? '',
+      );
+    }).toList());
+    setState(() {
+      _jobs = jobs;
+      _isLoading = false;
+    });
+  }
+
+  JobStatus _mapStatus(String? status) {
+    switch (status) {
+      case 'completed':
+        return JobStatus.completed;
+      case 'inProgress':
+        return JobStatus.inProgress;
+      case 'cancelled':
+        return JobStatus.cancelled;
+      case 'acceptedByWorker':
+        return JobStatus.acceptedByWorker;
+      default:
+        return JobStatus.all;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +199,74 @@ class _JobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isAccepted = job.status == JobStatus.acceptedByWorker;
+
+    if (isAccepted) {
+      // Detailed card for accepted job/task offer
+      return Card(
+        color: Colors.green.shade50,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          onTap: () => _showJobDetails(context),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        job.title,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade900,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.verified, color: Colors.green.shade700, size: 28),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildDetailRow(Icons.person, 'Sender: [fetch sender name]', Colors.green.shade900),
+                const SizedBox(height: 8),
+                _buildDetailRow(Icons.location_on, job.location, Colors.green.shade900),
+                const SizedBox(height: 8),
+                _buildDetailRow(Icons.calendar_today, DateFormat('MMM dd, yyyy • hh:mm a').format(job.date), Colors.green.shade900),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Chip(
+                      backgroundColor: Colors.green.shade700,
+                      label: Text(
+                        'Accepted',
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                    Text(
+                      '\$${job.amount.toStringAsFixed(2)}',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: Colors.green.shade900,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Placeholder for more details or actions
+                Text('Contact sender or view more details...', style: TextStyle(color: Colors.green.shade700)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Card(
       color: lightDarkColorPro,
@@ -305,7 +402,8 @@ enum JobStatus {
   all('All', Icons.all_inclusive, Colors.grey, Colors.grey),
   completed('Completed', Icons.check_circle, Colors.green, Colors.white),
   inProgress('In Progress', Icons.access_time, Colors.orange, Colors.white),
-  cancelled('Cancelled', Icons.cancel, Colors.red, Colors.white);
+  cancelled('Cancelled', Icons.cancel, Colors.red, Colors.white),
+  acceptedByWorker('Accepted', Icons.verified, Colors.green, Colors.white);
 
   final String label;
   final IconData icon;

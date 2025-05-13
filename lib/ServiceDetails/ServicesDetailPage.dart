@@ -56,8 +56,8 @@ class ServiceDetailPage extends StatelessWidget {
                     name: professional['name'] ?? 'Unknown',
                     experience: professional['experience'] ?? 'N/A',
                     rating: (professional['rating'] as num?)?.toDouble() ?? 0.0,
-                    imagePath:
-                        professional['image'] ?? 'assets/default_pic.png',
+                    imagePath: professional['profileImageUrl'] ??
+                        'assets/default_pic.png',
                     contact: professional['contact'] ?? 'N/A',
                     isVerified: professional['isVerified'] as bool? ?? true,
                   );

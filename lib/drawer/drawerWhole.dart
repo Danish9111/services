@@ -40,7 +40,7 @@ Drawer buildNavigationDrawer(context, ref) {
               'Support', darkColorPro, Colors.orangeAccent),
           _buildDrawerItem(Icons.help, 'Help Center', () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => HelpCenterPage()),
+              MaterialPageRoute(builder: (context) => const HelpCenterPage()),
             );
           }, darkColorPro, Colors.orangeAccent, lightColorPro),
           _buildDrawerItem(Icons.phone, 'Contact Us', () {

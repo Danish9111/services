@@ -39,7 +39,7 @@ dependencies:
   shared_preferences:
   string_similarity:
   speech_to_text:
-  permission_handler:
+  permission_handler: ^12.0.0+1  
   badges: ^2.0.3
   flutter_riverpod:
   # cloud_firestore: 
@@ -61,6 +61,10 @@ dependencies:
   flutter_mailer: ^3.0.0
   font_awesome_flutter: ^10.7.0
   firebase_app_check: ^0.3.2+5
+  qr_flutter: 
+  flutter_slidable: ^4.0.0
+  # image_gallery_saver: ^1.7.1
+  
 
 
 

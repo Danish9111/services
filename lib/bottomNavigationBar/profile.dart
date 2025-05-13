@@ -10,6 +10,7 @@ import 'package:services/providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:path_provider/path_provider.dart';
 import '../messaging/customeLoader.dart';
+import 'package:services/ServiceDetails/serviceCompletionCard.dart';
 
 File? _imageFile;
 
@@ -49,6 +50,25 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
     'about': '',
     'type': ''
   };
+
+  final List<String> allRoles = [
+    'Technician',
+    'Mechanic',
+    'Electrician',
+    'Plumber',
+    'Driver',
+    'Painter',
+    'Mason',
+    'Tailor',
+    'Barber',
+    'Gardener',
+    'Welder',
+    'Carpenter',
+    'Cleaner',
+    'Chef',
+    'Security Guard',
+    'Delivery',
+  ];
 
   Future<void> _loadProfileData() async {
     if (uid == null) return;
@@ -148,11 +168,13 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   @override
   void initState() {
     super.initState();
-
+    // reloadProfileImageForCurrentUser();
     _loadProfileData();
-    _loadLocalProfileImage(); // Load image from SharedPreferences if available
+    // Load image from SharedPreferences if available
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser != null) {
+      // reloadProfileImageForCurrentUser();
+
       debugPrint("User ID: ${firebaseUser.uid}");
     } else {
       debugPrint("User not authenticated");
@@ -166,27 +188,10 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
         TextEditingController(text: activeProfileData['location']);
     _roleController = TextEditingController(text: activeProfileData['role']);
     _aboutController = TextEditingController(text: activeProfileData['about']);
+    // _loadLocalProfileImage();
   }
 
-  Future<void> _loadLocalProfileImage() async {
-    if (uid == null) {
-      setState(() {
-        _imageFile = null;
-      });
-      ref.read(profileImageProvider.notifier).state = '';
-      return;
-    }
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? imagePath = prefs.getString('profile_image_path_$uid');
-    setState(() {
-      _imageFile =
-          (imagePath != null && imagePath.isNotEmpty) ? File(imagePath) : null;
-    });
-    ref.read(profileImageProvider.notifier).state = imagePath ?? '';
-  }
-
-  // Call this after login/logout/account switch to always load the correct image
-  // Future<void> reloadProfileImageForCurrentUser() async {
+  // Future<void> _loadLocalProfileImage() async {
   //   if (uid == null) {
   //     setState(() {
   //       _imageFile = null;
@@ -200,6 +205,28 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   //     _imageFile =
   //         (imagePath != null && imagePath.isNotEmpty) ? File(imagePath) : null;
   //   });
+  //   // ref.read(profileImageProvider.notifier).state = imagePath ?? '';
+  // }
+
+  // Call this after login/logout/account switch to always load the correct image
+  // Future<void> reloadProfileImageForCurrentUser() async {
+  //   if (uid == null) {
+  //     setState(() {
+  //       _imageFile = null;
+  //     });
+  //     ref.read(profileImageProvider.notifier).state = '';
+  //     return;
+  //   }
+  //   String reaction = '';
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   String? imagePath = prefs.getString('profile_image_path_$uid');
+  //   setState(() {
+  //     reaction = '❤️❤️';
+  //     _imageFile =
+  //         (imagePath != null && imagePath.isNotEmpty) ? File(imagePath) : null;
+  //   });
+  //   debugPrint('your code is running $reaction');
+
   //   ref.read(profileImageProvider.notifier).state = imagePath ?? '';
   // }
 
@@ -229,6 +256,7 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
     final darkColorPro = ref.watch(darkColorProvider);
     final lightColorPro = ref.watch(lightColorProvider);
     const darkColor = Color.fromARGB(255, 63, 72, 76);
+    final imageUrl = ref.watch(profileImageProvider);
     return Scaffold(
       backgroundColor: darkColorPro,
       appBar: AppBar(
@@ -266,7 +294,108 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                       _buildInfoSection(lightColorPro, darkColorPro),
                       const SizedBox(height: 20),
                       _buildActionButtons(lightColorPro, darkColorPro),
-                      _buildProfileCompletionSection(),
+                      StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('workerProfiles')
+                            .doc(uid)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData || !snapshot.data!.exists) {
+                            return const SizedBox.shrink();
+                          }
+                          final data =
+                              snapshot.data!.data() as Map<String, dynamic>;
+                          final experience =
+                              data['experience']?.toString() ?? '';
+                          final fee = data['fee']?.toString() ?? '';
+                          final availability =
+                              data['availability']?.toString() ?? '';
+                          final missingFields = <String>[];
+                          if (experience.isEmpty) {
+                            missingFields.add('Experience');
+                          }
+                          if (fee.isEmpty) missingFields.add('Fee');
+                          if (availability.isEmpty) {
+                            missingFields.add('Availability');
+                          }
+                          if (missingFields.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Container(
+                            margin: const EdgeInsets.only(top: 24),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              border: Border.all(color: Colors.orangeAccent),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.orange,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Profile completion',
+                                            style: TextStyle(
+                                              color: Colors.orange.shade900,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Add the following to complete your professional profile: '
+                                            '${missingFields.join(', ')}',
+                                            style: TextStyle(
+                                              color: Colors.orange.shade900,
+                                              fontSize: 14,
+                                              height: 1.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Center(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orangeAccent,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                    ),
+                                    onPressed: () {
+                                      _showCompleteProfileModal(missingFields);
+                                    },
+                                    icon: const Icon(
+                                        Icons.check_circle_outline_sharp,
+                                        color: Colors.white,
+                                        opticalSize: 20),
+                                    label: const Text('Complete Profile'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      )
                     ],
                   ),
                 ),
@@ -287,6 +416,8 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   // UI Building Methods
   // ---------------------------
   Widget _buildProfileHeader(Color lightColorPro, Color darkColorPro) {
+    final imageUrl = ref.watch(profileImageProvider);
+
     return Column(
       children: [
         Container(
@@ -298,55 +429,65 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
           child: CircleAvatar(
             radius: 50,
             backgroundColor: darkColorPro,
-            child: ClipOval(
-              child: (_imageFile != null)
-                  ? Stack(
-                      children: [
-                        Image.file(
-                          _imageFile!,
-                          fit: BoxFit.cover,
-                          width: 100,
-                          height: 100,
-                          errorBuilder: (context, error, stackTrace) => Icon(
+            child: Stack(
+              children: [
+                ClipOval(
+                  child: (imageUrl != null && imageUrl.isNotEmpty)
+                      ? (imageUrl.startsWith('http')
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              width: 100,
+                              height: 100,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                Icons.person,
+                                color: lightColorPro,
+                                size: 50,
+                              ),
+                            )
+                          : Image.file(
+                              File(imageUrl),
+                              fit: BoxFit.cover,
+                              width: 100,
+                              height: 100,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                Icons.person,
+                                color: lightColorPro,
+                                size: 50,
+                              ),
+                            ))
+                      : IconButton(
+                          icon: Icon(
                             Icons.person,
                             color: lightColorPro,
                             size: 50,
                           ),
+                          onPressed: () async {
+                            File? pickedImage = await _pickPhoto();
+                            if (pickedImage != null) {
+                              setState(() {
+                                _imageFile = pickedImage;
+                              });
+                            }
+                          },
                         ),
-                        if (_isEditing)
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              onPressed: () async {
-                                _removeProfileImage();
-                              },
-                            ),
-                          ),
-                      ],
-                    )
-                  : IconButton(
-                      icon: Icon(
-                        Icons.person,
-                        color: lightColorPro,
-                        size: 50,
+                ),
+                if (_isEditing && imageUrl != null && imageUrl.isNotEmpty)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.cancel_outlined,
+                        color: Colors.white,
+                        size: 20,
                       ),
-                      onPressed: () async {
-                        if (_isEditing) {
-                          File? pickedImage = await _pickPhoto();
-                          if (pickedImage != null) {
-                            setState(() {
-                              _imageFile = pickedImage;
-                            });
-                          }
-                        }
-                      },
+                      onPressed: _removeProfileImage,
                     ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -358,7 +499,8 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                   labelText: 'Name',
                   labelStyle: TextStyle(color: lightColorPro),
                   enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: lightColorPro)),
+                    borderSide: BorderSide(color: lightColorPro),
+                  ),
                 ),
                 validator: (value) => value == null || value.isEmpty
                     ? "Name cannot be empty"
@@ -370,7 +512,7 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                 ),
               )
             : Text(
-                activeProfileData['name']!.isNotEmpty
+                activeProfileData['name']?.isNotEmpty == true
                     ? activeProfileData['name']!
                     : "No Name",
                 style: TextStyle(
@@ -381,14 +523,48 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
               ),
         const SizedBox(height: 5),
         _isEditing
-            ? TextFormField(
-                controller: _roleController,
+            ? DropdownButtonFormField<String>(
+                value: allRoles.contains(_roleController.text) &&
+                        _roleController.text.isNotEmpty
+                    ? _roleController.text
+                    : null,
+                items: allRoles.map((role) {
+                  return DropdownMenuItem(
+                    value: role,
+                    child: Row(
+                      children: [
+                        Icon(Icons.work_outline,
+                            color: lightColorPro, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          role,
+                          style: TextStyle(
+                            color: lightColorPro,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _roleController.text = value ?? '';
+                  });
+                },
                 decoration: InputDecoration(
                   labelText: 'Role',
                   labelStyle: TextStyle(color: lightColorPro),
                   enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: lightColorPro)),
+                    borderSide: BorderSide(color: lightColorPro),
+                  ),
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: lightColorPro),
+                  ),
                 ),
+                dropdownColor: darkColorPro,
+                icon: Icon(Icons.arrow_drop_down, color: lightColorPro),
                 style: TextStyle(
                   fontSize: 18,
                   color: lightColorPro,
@@ -396,7 +572,7 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                 ),
               )
             : Text(
-                activeProfileData['role']!.isNotEmpty
+                activeProfileData['role']?.isNotEmpty == true
                     ? activeProfileData['role']!
                     : "No Role",
                 style: TextStyle(
@@ -412,18 +588,32 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
 
   File? pickedImage;
   Future<File?> _pickPhoto() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return null;
-    pickedImage = File(picked.path);
-    // Save to SharedPreferences for persistence
+
+    final tempImage = File(picked.path);
+    final prefs = await SharedPreferences.getInstance();
+    File savedImage = tempImage;
+
     if (uid != null) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('profile_image_path_$uid', picked.path);
-      // Always update provider so drawer/dashboard get the image
-      ref.read(profileImageProvider.notifier).state = picked.path;
+      final appDir = await getApplicationDocumentsDirectory();
+      savedImage = await tempImage
+          .copy('${appDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await prefs.setString('profile_image_path_$uid', savedImage.path);
+    } else {
+      await prefs.setString('profile_image_path_temp', tempImage.path);
     }
-    return File(picked.path);
+    final savedImageis = savedImage.path;
+    debugPrint('😊the path from pick photo function savedImage: $savedImageis');
+
+    ref.read(profileImageProvider.notifier).state = savedImage.path;
+
+    setState(() {
+      _imageFile = savedImage;
+      pickedImage = savedImage;
+    });
+
+    return savedImage;
   }
 
   void _removeProfileImage() async {
@@ -449,52 +639,41 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                 await imageFile.readAsBytes(),
                 fileOptions: const sb.FileOptions(upsert: true),
               );
+
       if (filePath.isEmpty) throw Exception('Empty upload path');
       debugPrint('rawPath → $filePath');
-
-      // 2. getPublicUrl → synchronous String
-
+// 2. getPublicUrl → synchronous String
       publicUrl = supabase.storage
           .from('profileimages')
           .getPublicUrl('uploads/$uid.jpg');
 
+// Bust cache by appending timestamp
+      final cacheBustedUrl =
+          '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
       try {
-        // 🔥 Save public URL locally for reuse
-        // final prefs = await SharedPreferences.getInstance();
-        // await prefs.setString('profile_image_url', publicUrl);
-
-        // 🧠 Update provider too if needed
-        ref.read(profileImageProvider.notifier).state = publicUrl;
+        // Update provider and SharedPreferences with cache-busted URL
+        ref.read(profileImageProvider.notifier).state = cacheBustedUrl;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profile_image_path_$uid', cacheBustedUrl);
+        debugPrint('😊 Profile image URL updated: $cacheBustedUrl');
       } catch (e) {
-        debugPrint('❌ Error storing image info to sharedpreferences: $e');
+        debugPrint('❌ Error updating provider or prefs: $e');
       }
 
-      // 3. update + select → returns List<Map<String, dynamic>>
-      //    throws a PostgrestException on RLS or network errors
-      // final updatedRows = await supabase
-      //     .from('employerProfiles')
-      //     .update({'profileImage': publicUrl})
-      //     .eq('firebase_uid', uid)
-      //     .select();
-
-      // 4. Update Firestore senderImageUrl for chat display
       try {
         await FirebaseFirestore.instance
             .collection('employerProfiles')
             .doc(uid)
-            .update({'senderImageUrl': publicUrl});
+            .update({'senderImageUrl': cacheBustedUrl});
       } catch (e) {
         debugPrint('❌ Error uploading profile image url to  Firestore: $e');
       }
 
-      // if (updatedRows.isEmpty) {
-      //   debugPrint('❌ No profile row was updated');
-      // } else {
-      //   debugPrint('✅ Profile updated, sample return: \\${updatedRows.first}');
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     const SnackBar(content: Text('Image uploaded to supabase')),
-      //   );
-      // }
+      // Clear local image state after upload
+      setState(() {
+        pickedImage = null;
+        _imageFile = null;
+      });
     } on sb.PostgrestException catch (e) {
       // catches RLS / HTTP / Postgrest errors
       debugPrint('❌ Supabase error: \\${e.message}');
@@ -503,9 +682,9 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
       );
     } catch (e) {
       // catches any other errors (e.g. file IO)
-      debugPrint('🔥 Unexpected error: \\${e}');
+      debugPrint('🔥 Unexpected error: \\$e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unexpected error: \\${e}')),
+        SnackBar(content: Text('Unexpected error: \\$e')),
       );
     }
   }
@@ -809,73 +988,6 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
     );
   }
 
-  Widget _buildProfileCompletionSection() {
-    // 3 additional fields for completion:
-    final additionalFields = <String, String>{
-      'Experience': workerData['experience'] ?? '',
-      'Fee': workerData['fee'] ?? '',
-      'Availability': workerData['availability'] ?? '',
-    };
-    final missingAdditional = additionalFields.entries
-        .where((entry) => entry.value.isEmpty)
-        .map((entry) => entry.key)
-        .toList();
-    final completedCount = additionalFields.length - missingAdditional.length;
-    final percent = ((completedCount / additionalFields.length) * 100).round();
-    final isComplete = missingAdditional.isEmpty;
-
-    if (isComplete) return const SizedBox.shrink();
-    return Container(
-      margin: const EdgeInsets.only(top: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        border: Border.all(color: Colors.orangeAccent),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: Colors.orange, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Profile completion: $percent%',
-                  style: TextStyle(
-                    color: Colors.orange.shade900,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Add the following to complete your professional profile: ${missingAdditional.join(', ')}',
-                  style: TextStyle(color: Colors.orange.shade900, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orangeAccent,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    _showCompleteProfileModal(missingAdditional);
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Complete Profile'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showCompleteProfileModal(List<String> missingFields) {
     final theme = Theme.of(context);
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -928,7 +1040,10 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                       value: selectedExperience,
                       decoration: const InputDecoration(
                         hintText: "Select experience",
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
                       ),
                       items: List.generate(10, (i) => i + 1)
                           .map((years) => DropdownMenuItem(
@@ -953,7 +1068,10 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                       decoration: const InputDecoration(
                         prefixText: "Rs. ",
                         hintText: "Enter fee per visit",
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -973,7 +1091,21 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                               final time = await showTimePicker(
                                 context: context,
                                 initialTime: TimeOfDay.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Colors
+                                            .orangeAccent, // clock dial and OK button
+                                        onSurface: Colors
+                                            .orangeAccent, // numbers and text color
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
+                              ;
                               if (time != null) {
                                 setState(() => startTime = time);
                               }
@@ -989,6 +1121,19 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                               final time = await showTimePicker(
                                 context: context,
                                 initialTime: TimeOfDay.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Colors
+                                            .orangeAccent, // clock dial and OK button
+                                        onSurface: Colors
+                                            .orangeAccent, // numbers and text color
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
                               if (time != null) setState(() => endTime = time);
                             },
@@ -1018,7 +1163,7 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                   ],
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.primaryColor,
+                      backgroundColor: Colors.orangeAccent,
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
                     ),
@@ -1038,7 +1183,7 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                               '${startTime!.format(context)} - ${endTime!.format(context)}';
                         }
                         if (selectedDays.isNotEmpty) {
-                          updates['working_days'] = 'selectedDays';
+                          updates['working_days'] = selectedDays.join(', ');
                         }
                       }
                       if (updates.isNotEmpty && uid != null) {
@@ -1128,39 +1273,40 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
   Future<void> _saveProfile() async {
     setState(() => _isSaving = true);
     try {
-      final original = pickedImage;
       if (uid == null) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('User not authenticated.')));
         setState(() => _isSaving = false);
         return;
       }
-      // 1. Copy to app dir if a new image was picked
-      File? imageToSave = original ?? _imageFile;
-      String? imagePath;
+
+      // Pick the image
+      File? imageToSave = pickedImage ?? _imageFile;
+      // if (imageToSave == null) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //       const SnackBar(content: Text('Please select a profile image.')));
+      //   setState(() => _isSaving = false);
+      //   return;
+      // }
+
+      // Upload image first
       if (imageToSave != null) {
-        final appDir = await getApplicationDocumentsDirectory();
-        final filename = '$uid.jpg';
-        final savedFile = await imageToSave.copy('${appDir.path}/$filename');
-        imagePath = savedFile.path;
+        await _putImageToSupabaseStorage(imageToSave);
+      }
+      // publicUrl will be available here
+
+      // Save correct path
+      if (publicUrl != null && publicUrl!.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('profile_image_path_$uid', imagePath);
+        await prefs.setString('profile_image_path_$uid', publicUrl!);
       }
-      // Only require an image if there is none at all
-      if (imageToSave == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Please select a profile image before saving.')),
-        );
-        setState(() => _isSaving = false);
-        return;
-      }
-      // 3. Upload to Supabase
-      await _putImageToSupabaseStorage(imageToSave);
+      debugPrint('😒publicUrl: $publicUrl');
+
       if (!_formKey.currentState!.validate()) {
         setState(() => _isSaving = false);
         return;
       }
+
       Map<String, String> updatedData = {
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -1171,35 +1317,35 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
         'type': activeProfileData['type']!,
         'profileImageUrl': publicUrl ?? '',
       };
-      try {
-        String collection = isEmployer ? 'employerProfiles' : 'workerProfiles';
-        await FirebaseFirestore.instance
-            .collection(collection)
-            .doc(uid)
-            .set(updatedData);
-        // Update cache after save
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('profile_email_$uid', updatedData['email'] ?? '');
-        await prefs.setString('profile_phone_$uid', updatedData['phone'] ?? '');
-        await prefs.setString(
-            'profile_location_$uid', updatedData['location'] ?? '');
-        await prefs.setString('profile_about_$uid', updatedData['about'] ?? '');
-        setState(() {
-          if (isEmployer) {
-            employerData = updatedData;
-          } else {
-            workerData = updatedData;
-          }
-          _isEditing = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully.')));
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text("Save failed: $e")));
+
+      String collection = isEmployer ? 'employerProfiles' : 'workerProfiles';
+      await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(uid)
+          .update(updatedData);
+
+      // Local cache update
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profile_email_$uid', updatedData['email'] ?? '');
+      await prefs.setString('profile_phone_$uid', updatedData['phone'] ?? '');
+      await prefs.setString(
+          'profile_location_$uid', updatedData['location'] ?? '');
+      await prefs.setString('profile_about_$uid', updatedData['about'] ?? '');
+
+      setState(() {
+        if (isEmployer) {
+          employerData = updatedData;
+        } else {
+          workerData = updatedData;
         }
-      }
+        _isEditing = false;
+        // Clear local image state after save
+        pickedImage = null;
+        _imageFile = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully.')));
     } finally {
       setState(() => _isSaving = false);
     }
@@ -1278,7 +1424,7 @@ class _TimePickerButton extends StatelessWidget {
             time != null ? time!.format(context) : label,
             style: TextStyle(
                 color: time != null
-                    ? Theme.of(context).primaryColor
+                    ? Colors.orangeAccent
                     : Theme.of(context).hintColor),
           ),
         ],

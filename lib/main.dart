@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:services/ServiceDetails/professionalDetail.dart';
 import 'dart:async';
+import 'dart:io';
 import 'DashBoardForWorker.dart';
 import 'RoleSelectionPage.dart';
 import 'SignInPage.dart';
@@ -19,7 +21,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers.dart'; // import your provider
 import 'package:flutter/services.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:services/messaging/chatScreen.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -34,21 +36,17 @@ void main() async {
       const Settings(persistenceEnabled: true);
 
   // Load image path from SharedPreferences and update provider
+  //focus on the line below
   final prefs = await SharedPreferences.getInstance();
-  final imagePath = prefs.getString('profile_image_path') ?? '';
-  final container = ProviderContainer();
-  container.read(profileImageProvider.notifier).state = imagePath;
+  final imagePath = prefs.getString('profile_image_path_$uid') ?? '';
+  // final container = ProviderContainer();
+  // container.read(profileImageProvider.notifier).state = imagePath;
 
   await sb.Supabase.initialize(
     url: 'https://wclstppljeelcmaoejba.supabase.co',
     anonKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjbHN0cHBsamVlbGNtYW9lamJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwMzEyNjgsImV4cCI6MjA2MDYwNzI2OH0.a7pKTr7NX0j6v_MLrcXuFUmnxPPXKoKn8uMaQSBEzek',
   );
-  // await FirebaseAppCheck.instance.activate(
-  //   androidProvider: AndroidProvider.debug,
-  // );
-  // String? token = await FirebaseAppCheck.instance.getToken();
-  // debugPrint('🤣App Check token: $token');
 
   runApp(
     ProviderScope(
@@ -60,59 +58,40 @@ void main() async {
   );
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
   MyAppState createState() => MyAppState();
 }
 
-class MyAppState extends State<MyApp> with WidgetsBindingObserver {
+class MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   User? user;
   String? _currentUserId;
+  File? _imageFile;
   final databaseRef = FirebaseDatabase.instance.ref();
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   bool _isOnline = false;
+
   @override
   void initState() {
-    super.initState();
-    FirebaseFirestore.instance
-        .collection('chatss')
-        .where('status', isEqualTo: 'sent')
-        .where('receiverId', isEqualTo: _currentUserId)
-        .snapshots()
-        .listen((event) {
-      updateMessageToReceived(event.docs);
-    });
-
-    // Set up the observer for app lifecycle
+    super.initState(); //
     WidgetsBinding.instance.addObserver(this);
+    _loadLocalProfileImage(); // Load local profile image
 
-    // Listen for authentication state changes
     FirebaseAuth.instance.authStateChanges().listen((User? firebaseUser) {
       setState(() {
         user = firebaseUser;
         if (user != null) {
           _currentUserId = user?.uid;
-          _setUserOnlineStatus(true); // Set online immediately when logged in
-
-          // Attach Firestore listener for messages
-          // FirebaseFirestore.instance
-          //     .collection('chatss')
-          //     .where('receiverId', isEqualTo: _currentUserId)
-          //     .where('status', isEqualTo: 'sent')
-          //     .orderBy('timestamp', descending: false)
-          //     .snapshots()
-          //     .listen((snapshot) {
-          //   updateMessageToReceived(snapshot.docs);
-          // });
+          _setUserOnlineStatus(true);
+          // reloadProfileImageForCurrentUser(); // ✅ Reload image when user switches
         } else {
           _setUserOnlineStatus(false);
         }
       });
     });
 
-    // Listen for connectivity changes (optional)
     _connectivitySubscription = Connectivity()
         .onConnectivityChanged
         .listen((ConnectivityResult result) {
@@ -126,32 +105,32 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       }
     });
 
-    // If a user is already logged in at startup, set online status to true
     if (user != null) {
       _setUserOnlineStatus(true);
     }
-    _setUserOnlineStatus(true);
   }
 
-  void updateMessageToReceived(List<QueryDocumentSnapshot> messages) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final unreceivedMessages =
-        messages.where((message) => message['status'] != 'received').toList();
-
-    if (unreceivedMessages.isNotEmpty) {
-      try {
-        for (var messageDoc in unreceivedMessages) {
-          if (messageDoc['receiverId'] == currentUserId) {
-            FirebaseFirestore.instance
-                .collection('chatss')
-                .doc(messageDoc.id)
-                .update({'status': 'received'});
-          }
-        }
-      } catch (e) {
-        rethrow;
+  Future<void> _loadLocalProfileImage() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      if (mounted) {
+        setState(() {
+          _imageFile = null;
+        });
       }
+      ref.read(profileImageProvider.notifier).state = '';
+      return;
     }
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? imagePath = prefs.getString('profile_image_path_$uid');
+    if (mounted) {
+      setState(() {
+        _imageFile = (imagePath != null && imagePath.isNotEmpty)
+            ? File(imagePath)
+            : null;
+      });
+    }
+    ref.read(profileImageProvider.notifier).state = imagePath ?? '';
   }
 
   @override
@@ -166,8 +145,6 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       }
     }
   }
-
-  //stop here////////////////////
 
   @override
   void dispose() {
@@ -191,12 +168,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-        ),
-      ),
+      // theme: ThemeData(
+      //   appBarTheme: const AppBarTheme(
+      //     backgroundColor: Colors.white,
+      //     foregroundColor: Colors.black,
+      //   ),
+      // ),
       navigatorObservers: [routeObserver],
       onGenerateRoute: generateRoute,
       initialRoute: '/',
@@ -204,6 +181,13 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
+          // SystemChrome.setSystemUIOverlayStyle(
+          //   const SystemUiOverlayStyle(
+          //     statusBarColor: Color(0xFFB3E5FC), // light blue
+          //     statusBarIconBrightness:
+          //         Brightness.dark, // dark icons for light background
+          //   ),
+          // );
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Show a loading indicator while waiting for Firebase initialization
             return const Scaffold(
@@ -246,6 +230,12 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     case '/CustomBottomNavBar':
       return MaterialPageRoute(
           builder: (context) => const CustomBottomNavBar());
+    case '/chatScreen':
+      return MaterialPageRoute(
+          builder: (context) => const ChatScreen(
+                receiverId: '',
+              ));
+
     default:
       return MaterialPageRoute(
         builder: (context) => Scaffold(

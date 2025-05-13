@@ -123,13 +123,12 @@ class DashboardforworkerPageState extends ConsumerState<Dashboardforworker> {
 
   AppBar _buildAppBar(lightColorPro) {
     final isDark = ref.watch(isDarkProvider);
-    final backgroundColor =
-        isDark ? const Color.fromARGB(255, 63, 72, 76) : Colors.transparent;
-    final iconColor = isDark ? Colors.white : Colors.black;
+    // final backgroundColor =
+    //     isDark ? const Color.fromARGB(255, 63, 72, 76) : Colors.transparent;
+    // final iconColor = isDark ? Colors.white : Colors.black;
     return AppBar(
-      iconTheme: IconThemeData(color: iconColor),
+      iconTheme: const IconThemeData(color: Colors.grey),
       toolbarHeight: 100,
-      backgroundColor: backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
@@ -456,7 +455,7 @@ class DashboardforworkerPageState extends ConsumerState<Dashboardforworker> {
               } else {
                 return const CircleAvatar(
                   radius: 20,
-                  backgroundImage: AssetImage('assets/profile_pic.jpeg'),
+                  backgroundImage: AssetImage('assets/default_pic.png'),
                 );
               }
             } catch (e) {
