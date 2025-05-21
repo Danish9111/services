@@ -63,6 +63,7 @@ dependencies:
   firebase_app_check: ^0.3.2+5
   qr_flutter: 
   flutter_slidable: ^4.0.0
+  avatar_glow: ^2.0.2
   # image_gallery_saver: ^1.7.1
   
 

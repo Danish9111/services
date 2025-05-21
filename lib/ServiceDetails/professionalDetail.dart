@@ -1,7 +1,5 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:services/bottomNavigationBar/customBottomNavigationBar.dart';
 import 'package:services/messaging/chatScreen.dart';
 import 'package:services/providers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -41,12 +39,212 @@ class Professional {
   });
 }
 
-class ProfessionalDetailPage extends HookConsumerWidget {
+class ProfessionalDetailPage extends ConsumerStatefulWidget {
   const ProfessionalDetailPage({super.key, required this.professionalId});
   final String professionalId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfessionalDetailPage> createState() =>
+      _ProfessionalDetailPageState();
+}
+
+class _ProfessionalDetailPageState
+    extends ConsumerState<ProfessionalDetailPage> {
+  bool _dialogShown = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_dialogShown) {
+      _dialogShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAllPendingRatingDialogs(context);
+      });
+    }
+  }
+
+  Future<void> _showAllPendingRatingDialogs(BuildContext context) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    // Prevent workers from rating themselves
+    if (userId == widget.professionalId) return;
+    QuerySnapshot? taskQuery;
+    try {
+      // Fetch all completed tasks for this user and professional
+      taskQuery = await FirebaseFirestore.instance
+          .collection('task')
+          .where('professionalId', isEqualTo: widget.professionalId)
+          .where('employerId', isEqualTo: userId)
+          .where('status', isEqualTo: 'done')
+          .get();
+    } catch (e) {
+      debugPrint('Error fetching tasks: $e');
+      return;
+    }
+    final unratedTasks = <QueryDocumentSnapshot>[];
+    for (final doc in taskQuery.docs) {
+      // Only show dialog if rating is null or 0 (not yet rated)
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['rating'] == null || data['rating'] == 0) {
+        unratedTasks.add(doc);
+      }
+    }
+    if (unratedTasks.isNotEmpty) {
+      await _showRatingDialogsSequentially(
+          context, unratedTasks.map((doc) => doc.id).toList());
+    }
+  }
+
+  Future<void> _showRatingDialogsSequentially(
+      BuildContext context, List<String> taskIds) async {
+    for (final taskId in taskIds) {
+      // ignore: use_build_context_synchronously
+      final submitted =
+          await showRatingDialog(context, taskId, widget.professionalId);
+      if (submitted == false) break; // Stop if user cancels
+    }
+  }
+
+  Future<bool> showRatingDialog(
+      BuildContext context, String taskId, String professionalId) async {
+    double rating = 0;
+    String reviewText = '';
+    bool isSubmitting = false;
+
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: true,
+          builder: (context) {
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: const Text('Rate & Review this Professional'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Please rate your experience:'),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(5, (index) {
+                            return IconButton(
+                              icon: Icon(
+                                index < rating ? Icons.star : Icons.star_border,
+                                color: Colors.amber,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  rating = index + 1.0;
+                                });
+                              },
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Leave a feedback (optional):'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          minLines: 2,
+                          maxLines: 4,
+                          onChanged: (val) => reviewText = val,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: 'Write your review here...',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () {
+                              Navigator.of(context).pop(false);
+                            },
+                      child: const Text('Cancel'),
+                    ),
+                    OutlinedButton(
+                      onPressed: (rating > 0 && !isSubmitting)
+                          ? () async {
+                              setState(() => isSubmitting = true);
+                              try {
+                                // Save task review
+                                final taskRef = FirebaseFirestore.instance
+                                    .collection('task')
+                                    .doc(taskId);
+                                await taskRef.update({
+                                  'rating': rating,
+                                  'review': reviewText.trim(),
+                                });
+
+                                // Update professional's average rating
+                                final ratedTasks = await FirebaseFirestore
+                                    .instance
+                                    .collection('task')
+                                    .where('professionalId',
+                                        isEqualTo: professionalId)
+                                    .where('rating', isGreaterThan: 0)
+                                    .get();
+
+                                double total = 0;
+                                int count = 0;
+
+                                for (final doc in ratedTasks.docs) {
+                                  final data = doc.data();
+                                  if (data['rating'] != null &&
+                                      data['rating'] > 0) {
+                                    total += (data['rating'] as num).toDouble();
+                                    count++;
+                                  }
+                                }
+
+                                final workerRef = FirebaseFirestore.instance
+                                    .collection('workerProfiles')
+                                    .doc(professionalId);
+
+                                await workerRef.update({
+                                  'rating': count > 0 ? total / count : 0.0,
+                                  'ratingCount': count,
+                                });
+
+                                Navigator.of(context).pop(true);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Thank you for your rating and feedback!'),
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              } finally {
+                                setState(() => isSubmitting = false);
+                              }
+                            }
+                          : null,
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Submit'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ) ??
+        false; // Default fallback if dialog is dismissed
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final backgroundColor = ref.watch(darkColorProvider);
     final cardColor = ref.watch(lightDarkColorProvider);
     final textColor = ref.watch(lightColorProvider);
@@ -66,7 +264,7 @@ class ProfessionalDetailPage extends HookConsumerWidget {
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
             .collection('workerProfiles')
-            .doc(professionalId)
+            .doc(widget.professionalId)
             .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -75,7 +273,6 @@ class ProfessionalDetailPage extends HookConsumerWidget {
           if (!snapshot.hasData || !snapshot.data!.exists) {
             return const Center(child: Text('Professional not found'));
           }
-
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final pro = Professional(
             name: data['name']?.isNotEmpty == true
@@ -94,7 +291,6 @@ class ProfessionalDetailPage extends HookConsumerWidget {
             review1: data['review1'] ?? '',
             review2: data['review2'] ?? '',
           );
-
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Center(
@@ -114,7 +310,7 @@ class ProfessionalDetailPage extends HookConsumerWidget {
                         ReviewsSection(professional: pro, textColor: textColor),
                       ],
                       const SizedBox(height: 20),
-                      ActionButtons(professionalId: professionalId),
+                      ActionButtons(professionalId: widget.professionalId),
                     ],
                   ),
                 ),
@@ -416,6 +612,10 @@ class ActionButtons extends StatelessWidget {
       'status': 'pending',
       'acceptedByWorker': false,
       'acceptedByEmployer': false,
+      'rating': 0.0,
+      'ratingCount': 0,
+      'review': '',
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 

@@ -42,11 +42,14 @@ class NotificationsPage extends ConsumerWidget {
           stream: FirebaseFirestore.instance
               .collection('task')
               .where('professionalId', isEqualTo: uid)
+              .where('acceptedByWorker', isEqualTo: false)
               .orderBy('createdAt', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return const Center(child: Text('Error loading notifications'));
+              return Center(
+                  child: Text(
+                      'Error loading notifications ${snapshot.stackTrace}'));
             }
 
             if (!snapshot.hasData) {
@@ -125,7 +128,7 @@ class NotificationsPage extends ConsumerWidget {
                           await FirebaseFirestore.instance
                               .collection('task')
                               .doc(doc.id)
-                              .delete();
+                              .update({'acceptedByWorker': true});
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content: Text('Notification deleted')),

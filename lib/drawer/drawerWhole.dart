@@ -30,12 +30,12 @@ Drawer buildNavigationDrawer(context, ref) {
               MaterialPageRoute(builder: (context) => const EmployerProfile()),
             );
           }, darkColorPro, Colors.orangeAccent, lightColorPro),
-          _buildDrawerItem(Icons.payment, 'Payment Methods', () {},
-              darkColorPro, Colors.orangeAccent, lightColorPro),
+          // _buildDrawerItem(Icons.payment, 'Payment Methods', () {},
+          //     darkColorPro, Colors.orangeAccent, lightColorPro),
 
-          _buildDrawerItem(Icons.settings, 'App Settings', () {}, darkColorPro,
-              Colors.orangeAccent, lightColorPro),
-          const Divider(height: 1),
+          // _buildDrawerItem(Icons.settings, 'App Settings', () {}, darkColorPro,
+          //     Colors.orangeAccent, lightColorPro),
+          // const Divider(height: 1),
           _buildDrawerSectionHeader(
               'Support', darkColorPro, Colors.orangeAccent),
           _buildDrawerItem(Icons.help, 'Help Center', () {

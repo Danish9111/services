@@ -413,10 +413,26 @@ class DashboardforworkerPageState extends ConsumerState<Dashboardforworker> {
   }
 
   Widget _buildNotificationButton(Color lightColorPro) {
+    final notificationStream = FirebaseFirestore.instance
+        .collection('task')
+        .where('status', isEqualTo: 'pending')
+        .where('professionalId',
+            isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+        .snapshots();
+    notificationStream.listen((snapshot) {
+      ref.read(notificationCountProvider.notifier).state = snapshot.docs.length;
+    });
+
+    final badgeCount = ref.watch(notificationCountProvider);
+    if (badgeCount == null || badgeCount == 0) {
+      _isBadgeVisible = false;
+    } else {
+      _isBadgeVisible = true;
+    }
     return badges.Badge(
       position: badges.BadgePosition.topEnd(top: 0, end: 5),
-      badgeContent:
-          const Text('3', style: TextStyle(color: Colors.white, fontSize: 10)),
+      badgeContent: Text(badgeCount.toString(),
+          style: const TextStyle(color: Colors.white, fontSize: 10)),
       badgeColor: Colors.red.shade400,
       showBadge: _isBadgeVisible,
       child: IconButton(
@@ -471,5 +487,6 @@ class DashboardforworkerPageState extends ConsumerState<Dashboardforworker> {
     );
   }
 
-  List<Map<String, String>> _getFeaturedServices() => services.sublist(0, 5);
+  List<Map<String, String>> _getFeaturedServices() =>
+      services.sublist(0, services.length < 5 ? services.length : 5);
 }

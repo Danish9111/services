@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
@@ -56,3 +57,5 @@ class LastSeenNotifier extends StateNotifier<AsyncValue<DateTime>> {
 }
 
 final profileImageProvider = StateProvider<String?>((ref) => null);
+
+final notificationCountProvider = StateProvider<int>((ref) => 0);

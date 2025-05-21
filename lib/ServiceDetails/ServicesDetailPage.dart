@@ -2,23 +2,31 @@ import 'package:services/messaging/chatScreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:services/ServiceDetails/professionalDetail.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:services/providers.dart';
 
-class ServiceDetailPage extends StatelessWidget {
+class ServiceDetailPage extends ConsumerWidget {
   final String serviceTitle;
 
   const ServiceDetailPage({super.key, required this.serviceTitle});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final backgroundColor = ref.watch(darkColorProvider);
+    final cardColor = ref.watch(lightDarkColorProvider);
+    final textColor = ref.watch(lightColorProvider);
+    final isDark = ref.watch(isDarkProvider);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cardColor,
         title: Text(
           serviceTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
         ),
         centerTitle: true,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
         future: FirebaseFirestore.instance
@@ -30,10 +38,10 @@ class ServiceDetailPage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
             return Center(
-                child: Text('Error occurred: ${snapshot.error.toString()}'));
+                child: Text('Error occurred: \\${snapshot.error.toString()}',
+                    style: TextStyle(color: textColor)));
           } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-                child: Text('No professionals found matching your query.'));
+            return NoProfessionalsFound(textColor: textColor);
           } else {
             final professionals = snapshot.data!.docs;
 
@@ -60,12 +68,52 @@ class ServiceDetailPage extends StatelessWidget {
                         'assets/default_pic.png',
                     contact: professional['contact'] ?? 'N/A',
                     isVerified: professional['isVerified'] as bool? ?? true,
+                    cardColor: cardColor,
+                    textColor: textColor,
+                    isDark: isDark,
                   );
                 },
               ),
             );
           }
         },
+      ),
+    );
+  }
+}
+
+class NoProfessionalsFound extends StatelessWidget {
+  final Color textColor;
+  const NoProfessionalsFound({super.key, required this.textColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.sentiment_dissatisfied,
+              color: textColor.withOpacity(0.7), size: 60),
+          const SizedBox(height: 18),
+          Text(
+            'No professionals found',
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try a different service or check back later.',
+            style: TextStyle(
+              color: textColor.withOpacity(0.7),
+              fontWeight: FontWeight.w400,
+              fontSize: 16,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -79,6 +127,9 @@ class ProfessionalCard extends StatelessWidget {
   final String imagePath;
   final String contact;
   final bool isVerified;
+  final Color cardColor;
+  final Color textColor;
+  final bool isDark;
 
   const ProfessionalCard({
     super.key,
@@ -89,6 +140,9 @@ class ProfessionalCard extends StatelessWidget {
     required this.imagePath,
     required this.contact,
     this.isVerified = true,
+    required this.cardColor,
+    required this.textColor,
+    required this.isDark,
   });
 
   void _showContactDialog(BuildContext context) {
@@ -107,13 +161,16 @@ class ProfessionalCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Contact $name',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w400),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w400,
+                      color: textColor),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   contact,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                  style: TextStyle(
+                      fontSize: 16, color: textColor.withOpacity(0.7)),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -122,7 +179,8 @@ class ProfessionalCard extends StatelessWidget {
                     Expanded(
                       child: TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Close'),
+                        child:
+                            Text('Close', style: TextStyle(color: textColor)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -163,15 +221,18 @@ class ProfessionalCard extends StatelessWidget {
       ),
       child: Card(
         elevation: 4,
+        color: cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.grey.shade50, Colors.white],
-            ),
+            gradient: isDark
+                ? null
+                : LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.grey.shade50, Colors.white],
+                  ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.max,
@@ -245,7 +306,7 @@ class ProfessionalCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: screenWidth * 0.04,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                color: textColor,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -266,7 +327,7 @@ class ProfessionalCard extends StatelessWidget {
                             rating.toStringAsFixed(1),
                             style: TextStyle(
                               fontSize: screenWidth * 0.035,
-                              color: Colors.grey.shade700,
+                              color: textColor.withOpacity(0.8),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -317,15 +378,22 @@ class ProfessionalCard extends StatelessWidget {
                         icon: Icon(
                           Icons.call,
                           size: screenWidth * 0.045,
-                          color: Colors.grey,
+                          color: Colors.orangeAccent,
                         ),
-                        label: const Text(''),
+                        label: Text(
+                          '',
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.035,
+                            color: Colors.orangeAccent,
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.zero,
-                          side: const BorderSide(color: Colors.grey),
+                          side: BorderSide(color: Colors.orangeAccent),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(50),
                           ),
+                          backgroundColor: isDark ? cardColor : null,
                         ),
                       ),
                     )),

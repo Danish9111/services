@@ -28,11 +28,13 @@ class VoiceSearchBottomSheetState extends State<VoiceSearchBottomSheet> {
       final status = await Permission.microphone.request();
       setState(() {
         _permissionGranted = status == PermissionStatus.granted;
-        _errorMessage =
-            _permissionGranted ? '' : 'Microphone permission is required for voice search';
+        _errorMessage = _permissionGranted
+            ? ''
+            : 'Microphone permission is required for voice search';
       });
     } catch (e) {
-      setState(() => _errorMessage = 'Error checking microphone permissions: $e');
+      setState(
+          () => _errorMessage = 'Error checking microphone permissions: $e');
     }
   }
 
@@ -105,7 +107,8 @@ class VoiceSearchBottomSheetState extends State<VoiceSearchBottomSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: _errorMessage.isNotEmpty ? _buildErrorSection() : _buildMainContent(),
+      child:
+          _errorMessage.isNotEmpty ? _buildErrorSection() : _buildMainContent(),
     );
   }
 
@@ -180,7 +183,9 @@ class VoiceSearchBottomSheetState extends State<VoiceSearchBottomSheet> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Text(
-        _searchQuery.isEmpty ? 'Your voice input will appear here...' : _searchQuery,
+        _searchQuery.isEmpty
+            ? 'Your voice input will appear here...'
+            : _searchQuery,
         style: const TextStyle(fontSize: 16, color: Colors.black87),
       ),
     );
@@ -191,16 +196,11 @@ class VoiceSearchBottomSheetState extends State<VoiceSearchBottomSheet> {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            icon: Icon(
-              _isListening ? Icons.stop : Icons.mic,
-              color: Colors.white,
-            ),
+            icon: AnimatedMic(isListening: _isListening),
             label: _isListening
-                ? const AnimatedDots(baseText: 'Listening')
-                : const Text(
-                    'Start',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                ? const Text('Listening...',
+                    style: TextStyle(color: Colors.white))
+                : const Text('Start', style: TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueGrey.shade800,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -228,59 +228,66 @@ class VoiceSearchBottomSheetState extends State<VoiceSearchBottomSheet> {
   }
 }
 
-class AnimatedDots extends StatefulWidget {
-  final String baseText;
-  const AnimatedDots({super.key, required this.baseText});
+class AnimatedMic extends StatefulWidget {
+  final bool isListening;
+  const AnimatedMic({super.key, required this.isListening});
 
   @override
-  AnimatedDotsState createState() => AnimatedDotsState();
+  State<AnimatedMic> createState() => _AnimatedMicState();
 }
 
-class AnimatedDotsState extends State<AnimatedDots> with SingleTickerProviderStateMixin {
+class _AnimatedMicState extends State<AnimatedMic>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  int _dotCount = 0;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
-    )..addListener(() {
-        setState(() {
-          // Cycle through 0 to 3 dots.
-          _dotCount = ((_controller.value * 4).floor() % 4);
-        });
-      });
-    _controller.repeat();
+      duration: const Duration(milliseconds: 900),
+      lowerBound: 0.9,
+      upperBound: 1.2,
+    );
+    if (widget.isListening) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedMic oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isListening && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.isListening && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 1.0;
+    }
   }
 
   @override
   void dispose() {
+    if (_controller.isAnimating) {
+      _controller.stop();
+    }
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          widget.baseText,
-          style: const TextStyle(color: Colors.white),
-        ),
-        SizedBox(
-          width: 30, // Fixed width to keep the dots area constant
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '.' * _dotCount,
-              style: const TextStyle(color: Colors.white),
-            ),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: widget.isListening ? _controller.value : 1.0,
+          child: Icon(
+            widget.isListening ? Icons.stop_circle : Icons.mic,
+            color: Colors.white,
+            size: 28,
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

@@ -24,23 +24,31 @@ class _JobHistoryPageState extends ConsumerState<JobHistoryPage> {
   }
 
   Future<void> _fetchJobsFromFirestore() async {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    // if (uid == null) return;
     if (uid == null) return;
+
     final taskSnapshot = await FirebaseFirestore.instance
         .collection('task')
         .where('professionalId', isEqualTo: uid)
         .get();
+
     final jobs = await Future.wait(taskSnapshot.docs.map((doc) async {
       final data = doc.data();
       // Fetch sender info
       String senderName = '';
+      String senderAddress = '';
       if (data['employerId'] != null) {
         final senderDoc = await FirebaseFirestore.instance
             .collection('workerProfiles')
             .doc(data['employerId'])
             .get();
-        senderName = senderDoc.data()?['name'] ?? '';
+        final senderData = senderDoc.data();
+        senderName = senderData?['name'] ?? '';
+        senderAddress = senderData?['location'] ?? '';
       }
       return JobHistory(
         id: doc.id,
@@ -48,8 +56,8 @@ class _JobHistoryPageState extends ConsumerState<JobHistoryPage> {
         client: senderName,
         date: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         status: _mapStatus(data['status']),
-        amount: (data['amount'] ?? 0).toDouble(),
-        location: data['location'] ?? '',
+        // amount: (data['amount'] ?? 0).toDouble(),
+        senderAddress: senderAddress,
       );
     }).toList());
     setState(() {
@@ -68,6 +76,8 @@ class _JobHistoryPageState extends ConsumerState<JobHistoryPage> {
         return JobStatus.cancelled;
       case 'acceptedByWorker':
         return JobStatus.acceptedByWorker;
+      case 'rejectedByWorker':
+        return JobStatus.rejectedByWorker;
       default:
         return JobStatus.all;
     }
@@ -138,15 +148,85 @@ class _JobHistoryPageState extends ConsumerState<JobHistoryPage> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: jobs.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, index) => _JobCard(
-        job: jobs[index],
-        lightColorPro: lightColorPro,
-        lightDarkColorPro: lightDarkColorPro,
-      ),
+    // Use StreamBuilder for real-time updates
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('task')
+          .where('professionalId', isEqualTo: uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Text(
+              'No jobs found',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: lightColorPro.withOpacity(0.8),
+                  ),
+            ),
+          );
+        }
+        final docs = snapshot.data!.docs;
+        return FutureBuilder<List<JobHistory>>(
+          future: Future.wait(docs.map((doc) async {
+            final data = doc.data() as Map<String, dynamic>;
+            String senderName = '';
+            String senderAddress = '';
+            if (data['employerId'] != null) {
+              final senderDoc = await FirebaseFirestore.instance
+                  .collection('workerProfiles')
+                  .doc(data['employerId'])
+                  .get();
+              final senderData = senderDoc.data();
+              senderName = senderData?['name'] ?? '';
+              senderAddress = senderData?['location'] ?? '';
+            }
+            return JobHistory(
+              id: doc.id,
+              title: data['taskDetails'] ?? 'No Title',
+              client: senderName,
+              date:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              status: _mapStatus(data['status']),
+              // amount: (data['amount'] ?? 0).toDouble(),
+              senderAddress: senderAddress,
+            );
+          }).toList()),
+          builder: (context, jobSnapshot) {
+            if (!jobSnapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final jobs = _filterStatus == JobStatus.all
+                ? jobSnapshot.data!
+                : jobSnapshot.data!
+                    .where((job) => job.status == _filterStatus)
+                    .toList();
+            if (jobs.isEmpty) {
+              return Center(
+                child: Text(
+                  'No jobs found',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: lightColorPro.withOpacity(0.8),
+                      ),
+                ),
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: jobs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (_, index) => _JobCard(
+                job: jobs[index],
+                lightColorPro: lightColorPro,
+                lightDarkColorPro: lightDarkColorPro,
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -172,6 +252,27 @@ class _JobHistoryPageState extends ConsumerState<JobHistoryPage> {
             ],
           ),
         );
+
+// enum JobStatus {
+//   all('All', Icons.all_inclusive, Colors.grey, Colors.grey),
+//   completed('Completed', Icons.check_circle, Colors.green, Colors.white),
+//   inProgress('In Progress', Icons.access_time, Colors.orange, Colors.white),
+//   cancelled('Cancelled', Icons.cancel, Colors.red, Colors.white),
+//   acceptedByWorker('Accepted', Icons.verified, Colors.green, Colors.white),
+//   rejectedByWorker('Rejected', Icons.cancel, Colors.red, Colors.white);
+
+//   final String label;
+//   final IconData icon;
+//   final Color backgroundColor;
+//   final Color textColor;
+
+//   const JobStatus(
+//     this.label,
+//     this.icon,
+//     this.backgroundColor,
+//     this.textColor,
+//   );
+// }
       }).toList(),
       color: darkColorPro,
       icon: Padding(
@@ -200,6 +301,7 @@ class _JobCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isAccepted = job.status == JobStatus.acceptedByWorker;
+    final isRejected = job.status == JobStatus.rejectedByWorker;
 
     if (isAccepted) {
       // Detailed card for accepted job/task offer
@@ -229,38 +331,101 @@ class _JobCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Icon(Icons.verified, color: Colors.green.shade700, size: 28),
+                    Icon(Icons.verified,
+                        color: Colors.green.shade700, size: 28),
                   ],
                 ),
                 const SizedBox(height: 10),
-                _buildDetailRow(Icons.person, 'Sender: [fetch sender name]', Colors.green.shade900),
+                _buildDetailRow(Icons.person, 'Sender: ${job.client}',
+                    Colors.green.shade900),
+                if (job.senderAddress.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildDetailRow(Icons.home, 'Address: ${job.senderAddress}',
+                      Colors.green.shade900),
+                ],
                 const SizedBox(height: 8),
-                _buildDetailRow(Icons.location_on, job.location, Colors.green.shade900),
-                const SizedBox(height: 8),
-                _buildDetailRow(Icons.calendar_today, DateFormat('MMM dd, yyyy • hh:mm a').format(job.date), Colors.green.shade900),
+                _buildDetailRow(
+                    Icons.calendar_today,
+                    DateFormat('MMM dd, yyyy • hh:mm a').format(job.date),
+                    Colors.green.shade900),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Chip(
-                      backgroundColor: Colors.green.shade700,
+                    const Chip(
+                      backgroundColor: Colors.grey,
                       label: Text(
-                        'Accepted',
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        'You Accepted this',
+                        style: TextStyle(color: Colors.white, fontSize: 13),
                       ),
                     ),
-                    Text(
-                      '\$${job.amount.toStringAsFixed(2)}',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: Colors.green.shade900,
-                        fontWeight: FontWeight.bold,
+                    OutlinedButton(
+                        onPressed: () => updateStatusToDone(context),
+                        child: const Text('Mark it Done ✅'))
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isRejected) {
+      // Detailed card for rejected job/task offer
+      return Card(
+        color: Colors.red.shade50,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          onTap: () => _showJobDetails(context),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        job.title,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade900,
+                        ),
                       ),
+                    ),
+                    Icon(Icons.cancel, color: Colors.red.shade700, size: 28),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildDetailRow(
+                    Icons.person, 'Sender: ${job.client}', Colors.red.shade900),
+                if (job.senderAddress.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildDetailRow(Icons.home, 'Address: ${job.senderAddress}',
+                      Colors.red.shade900),
+                ],
+                const SizedBox(height: 8),
+                _buildDetailRow(
+                    Icons.calendar_today,
+                    DateFormat('MMM dd, yyyy • hh:mm a').format(job.date),
+                    Colors.red.shade900),
+                const SizedBox(height: 8),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Chip(
+                      backgroundColor: Colors.grey,
+                      label: Text(' You Rejected this',
+                          style: TextStyle(color: Colors.white, fontSize: 13)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Placeholder for more details or actions
-                Text('Contact sender or view more details...', style: TextStyle(color: Colors.green.shade700)),
               ],
             ),
           ),
@@ -294,26 +459,24 @@ class _JobCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Chip(
-                    backgroundColor: job.status.backgroundColor,
-                    label: Text(
-                      job.status.label,
-                      style: TextStyle(
-                        color: job.status.textColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                  Icon(
+                    job.status.icon,
+                    color: job.status.backgroundColor,
+                    size: 28,
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              if (job.senderAddress.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _buildDetailRow(
+                  Icons.home,
+                  job.senderAddress,
+                  lightColorPro,
+                ),
+              ],
               const SizedBox(height: 12),
               _buildDetailRow(Icons.person, job.client, lightColorPro),
-              const SizedBox(height: 8),
-              _buildDetailRow(Icons.location_on, job.location, lightColorPro),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -323,11 +486,13 @@ class _JobCard extends StatelessWidget {
                     DateFormat('MMM dd, yyyy • hh:mm a').format(job.date),
                     lightColorPro,
                   ),
+                  const SizedBox(width: 8),
                   Text(
-                    '\$${job.amount.toStringAsFixed(2)}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: lightColorPro,
-                      fontWeight: FontWeight.bold,
+                    'Done',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: job.status.textColor,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -337,6 +502,27 @@ class _JobCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> updateStatusToDone(BuildContext context) async {
+    try {
+      FirebaseFirestore.instance.collection('task').doc(job.id).update({
+        'status': 'done',
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Successfully marked as done'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating status: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildDetailRow(IconData icon, String text, Color lightColorPro) {
@@ -370,14 +556,12 @@ class _JobCard extends StatelessWidget {
             children: [
               Text('Client: ${job.client}',
                   style: TextStyle(color: lightColorPro)),
-              Text('Location: ${job.location}',
-                  style: TextStyle(color: lightColorPro)),
               Text('Date: ${DateFormat.yMMMd().add_jm().format(job.date)}',
                   style: TextStyle(color: lightColorPro)),
               Text('Status: ${job.status.label}',
                   style: TextStyle(color: lightColorPro)),
-              Text('Amount: \$${job.amount.toStringAsFixed(2)}',
-                  style: TextStyle(color: lightColorPro)),
+              // Text('Amount: \$${job.amount.toStringAsFixed(2)}',
+              // style: TextStyle(color: lightColorPro)),
             ],
           ),
           actions: [
@@ -403,7 +587,8 @@ enum JobStatus {
   completed('Completed', Icons.check_circle, Colors.green, Colors.white),
   inProgress('In Progress', Icons.access_time, Colors.orange, Colors.white),
   cancelled('Cancelled', Icons.cancel, Colors.red, Colors.white),
-  acceptedByWorker('Accepted', Icons.verified, Colors.green, Colors.white);
+  acceptedByWorker('Accepted', Icons.verified, Colors.green, Colors.white),
+  rejectedByWorker('Rejected', Icons.cancel, Colors.red, Colors.white);
 
   final String label;
   final IconData icon;
@@ -424,8 +609,8 @@ class JobHistory {
   final String client;
   final DateTime date;
   final JobStatus status;
-  final double amount;
-  final String location;
+  // final double amount;
+  final String senderAddress;
 
   JobHistory({
     required this.id,
@@ -433,7 +618,7 @@ class JobHistory {
     required this.client,
     required this.date,
     required this.status,
-    required this.amount,
-    required this.location,
+    // required this.amount,
+    required this.senderAddress,
   });
 }
