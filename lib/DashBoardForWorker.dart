@@ -424,7 +424,7 @@ class DashboardforworkerPageState extends ConsumerState<Dashboardforworker> {
     });
 
     final badgeCount = ref.watch(notificationCountProvider);
-    if (badgeCount == null || badgeCount == 0) {
+    if (badgeCount == 0) {
       _isBadgeVisible = false;
     } else {
       _isBadgeVisible = true;

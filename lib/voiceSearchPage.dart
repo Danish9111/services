@@ -165,8 +165,13 @@ class VoiceSearchBottomSheetState extends State<VoiceSearchBottomSheet> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context, _searchQuery),
+          icon: const Icon(Icons.close, color: Colors.black),
+          onPressed: () {
+            if (_isListening) {
+              _stopListening();
+            }
+            Navigator.pop(context, _searchQuery);
+          },
         ),
       ],
     );

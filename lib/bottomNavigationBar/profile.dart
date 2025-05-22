@@ -126,8 +126,8 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
 
       if (employerDoc.exists) {
         setState(() {
-          employerData = Map<String, String>.from(
-              employerDoc.data() as Map<String, dynamic>);
+          employerData = (employerDoc.data() as Map<String, dynamic>)
+              .map((k, v) => MapEntry(k, v?.toString() ?? ''));
         });
       }
 
@@ -139,8 +139,8 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
 
       if (workerDocs.exists) {
         setState(() {
-          workerData = Map<String, String>.from(
-              workerDocs.data() as Map<String, dynamic>);
+          workerData = (workerDocs.data() as Map<String, dynamic>)
+              .map((k, v) => MapEntry(k, v?.toString() ?? ''));
         });
       }
 
@@ -1105,7 +1105,6 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                                   );
                                 },
                               );
-                              ;
                               if (time != null) {
                                 setState(() => startTime = time);
                               }

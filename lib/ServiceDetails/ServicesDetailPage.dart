@@ -187,7 +187,6 @@ class ProfessionalCard extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          // TODO: Implement call functionality
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
@@ -223,182 +222,162 @@ class ProfessionalCard extends StatelessWidget {
         elevation: 4,
         color: cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: isDark
-                ? null
-                : LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.grey.shade50, Colors.white],
-                  ),
-          ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+              vertical: screenWidth * 0.025, horizontal: screenWidth * 0.02),
           child: Column(
             mainAxisSize: MainAxisSize.max,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Flexible(
+                flex: 2,
+                fit: FlexFit.loose,
+                child: Center(
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.grey.shade200,
+                    backgroundImage: imagePath.isNotEmpty
+                        ? (imagePath.startsWith('http')
+                            ? NetworkImage(imagePath)
+                            : AssetImage(imagePath) as ImageProvider)
+                        : null,
+                    onBackgroundImageError: (_, __) {},
+                    child: imagePath.isEmpty
+                        ? const Icon(Icons.person, size: 30, color: Colors.grey)
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
                 flex: 3,
-                child: Stack(
-                  alignment: Alignment.bottomRight,
+                fit: FlexFit.loose,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                      child: Image.network(
-                        imagePath,
-                        height: double.infinity,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          height: double.infinity,
-                          color: Colors.grey.shade200,
-                          child: Image.asset(
-                            'assets/default_pic.png',
-                            fit: BoxFit.cover,
-                            width: double.infinity,
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: screenWidth * 0.02,
+                        ),
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.04,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
+                        if (isVerified)
+                          Icon(Icons.verified,
+                              color: Colors.blue, size: screenWidth * 0.045),
+                      ],
                     ),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenWidth * 0.03,
-                          vertical: screenHeight * 0.01,
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Row(
+                          children: [
+                            ...List.generate(
+                                rating.floor(),
+                                (i) => Icon(
+                                      Icons.star_rounded,
+                                      color: Colors.amber.shade600,
+                                      size: screenWidth * 0.045,
+                                    )),
+                            if (rating - rating.floor() >= 0.5)
+                              Icon(Icons.star_half_rounded,
+                                  color: Colors.amber.shade600,
+                                  size: screenWidth * 0.045),
+                            SizedBox(width: screenWidth * 0.01),
+                            Text(
+                              rating.toStringAsFixed(1),
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.035,
+                                color: textColor.withOpacity(0.8),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
+                        const Spacer(),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (experience.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.blueGrey.shade800.withOpacity(0.85),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                          ),
+                          color: Colors.orangeAccent.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '$experience Experience',
+                          "$experience Experience",
                           style: TextStyle(
-                            color: Colors.white,
                             fontSize: screenWidth * 0.03,
+                            color: Colors.orangeAccent,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
-              Flexible(
-                flex: 3,
-                fit: FlexFit.tight,
-                child: Padding(
-                  padding: EdgeInsets.all(screenWidth * 0.03),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name,
-                              style: TextStyle(
-                                fontSize: screenWidth * 0.04,
-                                fontWeight: FontWeight.w600,
-                                color: textColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (isVerified)
-                            Icon(Icons.verified,
-                                color: Colors.blue, size: screenWidth * 0.045),
-                        ],
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                                  receiverId: professionalId,
+                                )),
                       ),
-                      Row(
-                        children: [
-                          Icon(Icons.star_rounded,
-                              color: Colors.amber.shade600,
-                              size: screenWidth * 0.045),
-                          SizedBox(width: screenWidth * 0.01),
-                          Text(
-                            rating.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: screenWidth * 0.035,
-                              color: textColor.withOpacity(0.8),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueGrey.shade800,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  screenWidth * 0.03,
-                  0,
-                  screenWidth * 0.03,
-                  screenHeight * 0.01,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                    receiverId: professionalId,
-                                  )),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueGrey.shade800,
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.message,
-                          size: screenWidth * 0.045,
-                          color: Colors.white,
-                        ),
+                      child: Icon(
+                        Icons.message,
+                        size: screenWidth * 0.045,
+                        color: Colors.white,
                       ),
                     ),
-                    SizedBox(width: screenWidth * 0.03),
-                    Expanded(
-                        child: Center(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showContactDialog(context),
-                        icon: Icon(
+                  ),
+                  SizedBox(width: screenWidth * 0.03),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showContactDialog(context),
+                      icon: Center(
+                        child: Icon(
                           Icons.call,
                           size: screenWidth * 0.045,
                           color: Colors.orangeAccent,
                         ),
-                        label: Text(
-                          '',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.035,
-                            color: Colors.orangeAccent,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          side: BorderSide(color: Colors.orangeAccent),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          backgroundColor: isDark ? cardColor : null,
-                        ),
                       ),
-                    )),
-                  ],
-                ),
+                      label: const SizedBox.shrink(),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        side: const BorderSide(color: Colors.orangeAccent),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        backgroundColor: isDark ? cardColor : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
