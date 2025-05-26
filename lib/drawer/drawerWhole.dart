@@ -161,7 +161,7 @@ Widget _buildDrawerFooter(context) {
             'Sign Out',
             style: TextStyle(color: Colors.red.shade600),
           ),
-          onPressed: () => _confirmLogout(context),
+          onPressed: () => _confirmLogoutDialog(context),
         ),
         const SizedBox(height: 12),
       ],
@@ -169,7 +169,7 @@ Widget _buildDrawerFooter(context) {
   );
 }
 
-Future<void> _confirmLogout(BuildContext context) async {
+Future<void> _confirmLogoutDialog(BuildContext context) async {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 final uid = FirebaseAuth.instance.currentUser?.uid;
+final reviewGiversProvider = StateProvider<List<String>>((ref) => []);
 
 class Professional {
   final String name,
@@ -261,11 +262,13 @@ class _ProfessionalDetailPageState
         title: Text('Professional Details', style: TextStyle(color: textColor)),
         centerTitle: true,
       ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
             .collection('workerProfiles')
             .doc(widget.professionalId)
-            .get(),
+            // .collection('reviews')
+            // .doc()
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -275,9 +278,7 @@ class _ProfessionalDetailPageState
           }
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final pro = Professional(
-            name: data['name']?.isNotEmpty == true
-                ? data['name']
-                : 'Professional',
+            name: data['name']?.isNotEmpty ? data['name'] : 'Professional',
             rating: (data['rating'] ?? 0).toDouble(),
             role: data['role'] ?? '',
             profileImageUrl: data['profileImageUrl'] ?? '',
@@ -288,7 +289,7 @@ class _ProfessionalDetailPageState
             radius: data['radius'] ?? '',
             availability: data['availability'] ?? '',
             verifiedBy: data['verifiedBy'] ?? '',
-            review1: data['review1'] ?? '',
+            review1: data['review'] ?? '',
             review2: data['review2'] ?? '',
           );
           return Padding(
@@ -303,11 +304,17 @@ class _ProfessionalDetailPageState
                     children: [
                       ProfileHeader(professional: pro, textColor: textColor),
                       const SizedBox(height: 18),
-                      InfoSection(professional: pro, textColor: textColor),
+                      InfoSection(
+                        professional: pro,
+                        textColor: textColor,
+                        widgetRef: ref,
+                        professionalId: widget.professionalId,
+                      ),
                       if ((pro.review1.isNotEmpty ||
                           pro.review2.isNotEmpty)) ...[
                         const SizedBox(height: 14),
-                        ReviewsSection(professional: pro, textColor: textColor),
+
+                        // ReviewsSection(professional: pro, textColor: textColor),
                       ],
                       const SizedBox(height: 20),
                       ActionButtons(professionalId: widget.professionalId),
@@ -401,11 +408,14 @@ class ProfileHeader extends StatelessWidget {
 class InfoSection extends StatelessWidget {
   final Professional professional;
   final Color textColor;
+  final WidgetRef widgetRef;
+  final String professionalId;
 
   const InfoSection({
-    super.key,
     required this.professional,
     required this.textColor,
+    required this.widgetRef,
+    required this.professionalId,
   });
 
   @override
@@ -444,150 +454,235 @@ class InfoSection extends StatelessWidget {
       'Availability',
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(),
-        if (infoItems.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          ...infoItems,
-          const SizedBox(height: 10),
-        ],
-        const Divider(),
-        if (professional.verifiedBy.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.verified, color: Colors.blue, size: 20),
-              const SizedBox(width: 6),
-              Text(
-                'Verified by ${professional.verifiedBy}',
-                style: const TextStyle(
-                  color: Colors.blue,
-                  fontWeight: FontWeight.w600,
-                ),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Divider(),
+      if (infoItems.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        ...infoItems,
+        const SizedBox(height: 10),
+      ],
+      const Divider(),
+      if (professional.verifiedBy.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            const Icon(Icons.verified, color: Colors.blue, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              'Verified by ${professional.verifiedBy}',
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.w600,
               ),
-            ],
+            ),
+          ],
+        ),
+      ],
+      // Always show the Reviews label
+      const SizedBox(height: 16),
+      ExpansionTile(
+        backgroundColor: Colors.lightBlue.withOpacity(0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.reviews, color: textColor, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Reviews',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: textColor,
+                fontSize: 16,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ],
+        ),
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxHeight: 150,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  FutureBuilder(
+                      future: fetchReviewsData(context, professional, widgetRef,
+                          professionalId: professionalId),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        if (snapshot.hasData) {
+                          return _buildReviewTiles(context, professional,
+                              professionalId, widgetRef, textColor);
+                        }
+                        return const Text('No reviews available');
+                      }),
+                ],
+              ),
+            ),
           ),
         ],
-      ],
-    );
+      ),
+    ]);
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color color;
-  final String label;
-
-  const _InfoRow({
-    required this.icon,
-    required this.text,
-    required this.color,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          color: color,
-          size: 20, // Increased icon size
-        ),
-        const SizedBox(width: 8), // Slightly more space between icon and text
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: color,
-            fontSize: 16, // Increased label font size
-          ),
-        ),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 16, // Increased text font size
-          ),
-        ),
-      ],
-    );
-  }
+Widget _buildReviewTiles(BuildContext context, Professional professional,
+    String professionalId, WidgetRef widgetRef, Color textColor) {
+  return FutureBuilder<Map<String, List<String>>>(
+    future: fetchReviewsData(context, professional, widgetRef,
+        professionalId: professionalId),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      }
+      if (snapshot.hasData) {
+        final reviews = snapshot.data!['reviews']!;
+        final reviewGiverImages = snapshot.data!['reviewGiverImages']!;
+        if (reviews.isEmpty) {
+          return const Text('No reviews available');
+        }
+        return Column(
+          children: List.generate(reviews.length, (i) {
+            return _ReviewCard(
+              review: reviews[i],
+              color: textColor,
+              imageUrl:
+                  i < reviewGiverImages.length ? reviewGiverImages[i] : '',
+            );
+          }),
+        );
+      }
+      if (snapshot.hasError) {
+        return Text('Error fetching review: \\${snapshot.error}');
+      }
+      return const Text('No reviews available');
+    },
+  );
 }
 
-class ReviewsSection extends StatelessWidget {
-  final Professional professional;
-  final Color textColor;
+// Helper function to fetch reviews from Firestore
+Future<Map<String, List<String>>> fetchReviewsData(
+    BuildContext context, Professional professional, WidgetRef ref,
+    {required String professionalId}) async {
+  try {
+    final query = await FirebaseFirestore.instance
+        .collection('task')
+        .where('professionalId', isEqualTo: professionalId)
+        .where('rating', isGreaterThan: 0)
+        .get();
 
-  const ReviewsSection({
-    super.key,
-    required this.professional,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final reviews = [
-      if (professional.review1.isNotEmpty) professional.review1,
-      if (professional.review2.isNotEmpty) professional.review2,
-    ];
-
-    if (reviews.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Reviews',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: textColor,
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 6),
-        ...reviews
-            .map((review) => _ReviewCard(review: review, color: textColor)),
-      ],
-    );
+    final reviews = <String>[];
+    final reviewGivers = <String>[];
+    final reviewGiverImages = <String>[];
+    for (final doc in query.docs) {
+      final data = doc.data();
+      if (data['review'] != null && (data['review'] as String).isNotEmpty) {
+        reviews.add(data['review']);
+      }
+      if (data['employerId'] != null &&
+          (data['employerId'] as String).isNotEmpty) {
+        final employerId = data['employerId'] as String;
+        reviewGivers.add(employerId);
+        // Fetch image URL for this employerId
+        final profileSnap = await FirebaseFirestore.instance
+            .collection('workerProfiles')
+            .doc(employerId)
+            .get();
+        final profileData = profileSnap.data();
+        if (profileData != null &&
+            profileData['profileImageUrl'] != null &&
+            (profileData['profileImageUrl'] as String).isNotEmpty) {
+          reviewGiverImages.add(profileData['profileImageUrl'] as String);
+        } else {
+          reviewGiverImages.add('');
+        }
+      } else {
+        reviewGiverImages.add('');
+      }
+    }
+    ref.read(reviewGiversProvider.notifier).state = reviewGivers;
+    // Return images as well
+    return {
+      'reviews': reviews,
+      'reviewGivers': reviewGivers,
+      'reviewGiverImages': reviewGiverImages,
+    };
+  } catch (e) {
+    debugPrint('Error fetching reviews: $e');
+    return {
+      'reviews': [],
+      'reviewGivers': [],
+      'reviewGiverImages': [],
+    };
   }
 }
 
 class _ReviewCard extends StatelessWidget {
   final String review;
   final Color color;
+  final String imageUrl;
 
   const _ReviewCard({
     required this.review,
     required this.color,
+    this.imageUrl = '',
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.format_quote, color: Colors.amber, size: 18),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              review,
-              style: TextStyle(
-                color: color,
-                fontStyle: FontStyle.italic,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: color.withOpacity(0.3),
+              backgroundImage:
+                  (imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null,
+              child: (imageUrl.isEmpty)
+                  ? const Icon(Icons.person, color: Colors.white, size: 20)
+                  : null,
+            ),
+            const SizedBox(
+              height: 40,
+              child: VerticalDivider(
+                color: Colors.grey,
+                thickness: 1,
+                width: 20,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                review,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 5,
+                style: TextStyle(
+                  color: color,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -610,8 +705,8 @@ class ActionButtons extends StatelessWidget {
       'taskDetails': taskDetails,
       'createdAt': FieldValue.serverTimestamp(),
       'status': 'pending',
-      'acceptedByWorker': false,
-      'acceptedByEmployer': false,
+      // 'acceptedByWorker': false,
+      // 'acceptedByEmployer': false,
       'rating': 0.0,
       'ratingCount': 0,
       'review': '',
@@ -654,92 +749,144 @@ class ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.orangeAccent,
-                  side: const BorderSide(color: Colors.orangeAccent),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () {},
-                icon: const Icon(Icons.call, color: Colors.orangeAccent),
-                label: const Text('Call'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orangeAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatScreen(
-                        receiverId: professionalId,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.chat, color: Colors.white),
-                label: const Text('Chat'),
-              ),
-            )
-          ],
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () async {
-                try {
-                  if (await canAssignTask(professionalId)) {
-                    showdialog(
-                      context: context,
-                      title: 'Task already assigned',
-                      content:
-                          'You have already assigned a task to this professional.Please check your history.',
-                    );
-                    return;
-                  }
-                  await createTask(
-                    taskDetails: 'Fix AC',
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅Task Assigned')),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('❌ Error assigning task: $e')),
-                  );
-                }
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.assignment, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Assign Task',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Consumer(builder: (context, ref, _) {
+      Color darkColor = ref.watch(darkColorProvider);
+      Color lightColor = ref.watch(lightColorProvider);
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orangeAccent,
+                    side: const BorderSide(color: Colors.orangeAccent),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                ],
-              )),
+                  onPressed: () {},
+                  icon: const Icon(Icons.call, color: Colors.orangeAccent),
+                  label: const Text('Call'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orangeAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChatScreen(
+                          receiverId: professionalId,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat, color: Colors.white),
+                  label: const Text('Chat'),
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: lightColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () async {
+                  try {
+                    if (await canAssignTask(professionalId)) {
+                      showdialog(
+                        context: context,
+                        title: 'Task already assigned',
+                        content:
+                            'You have already assigned a task to this professional.Please check your history.',
+                      );
+                      return;
+                    }
+                    await createTask(
+                      taskDetails: 'Fix AC',
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('✅Task Assigned')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('❌ Error assigning task: $e')),
+                    );
+                  }
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.assignment, color: darkColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Assign Task',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: darkColor),
+                    ),
+                  ],
+                )),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+  final String label;
+
+  const _InfoRow({
+    super.key,
+    required this.icon,
+    required this.text,
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 10),
+        Text(
+          label + ': ',
+          style: TextStyle(
+            color: color,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: color.withOpacity(0.7),
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
