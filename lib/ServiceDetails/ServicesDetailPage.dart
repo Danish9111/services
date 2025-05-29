@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:services/ServiceDetails/professionalDetail.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:services/providers.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ServiceDetailPage extends ConsumerWidget {
   final String serviceTitle;
@@ -28,11 +29,11 @@ class ServiceDetailPage extends ConsumerWidget {
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
       ),
-      body: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        future: FirebaseFirestore.instance
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
             .collection('workerProfiles')
             .where('role', isEqualTo: serviceTitle)
-            .get(),
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -66,7 +67,7 @@ class ServiceDetailPage extends ConsumerWidget {
                     rating: (professional['rating'] as num?)?.toDouble() ?? 0.0,
                     imagePath: professional['profileImageUrl'] ??
                         'assets/default_pic.png',
-                    contact: professional['contact'] ?? 'N/A',
+                    contact: professional['phone'] ?? 'c/A',
                     isVerified: professional['isVerified'] as bool? ?? true,
                     cardColor: cardColor,
                     textColor: textColor,
@@ -145,64 +146,18 @@ class ProfessionalCard extends StatelessWidget {
     required this.isDark,
   });
 
-  void _showContactDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.contact_phone_rounded,
-                    size: 40, color: Colors.blueGrey.shade800),
-                const SizedBox(height: 16),
-                Text(
-                  'Contact $name',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w400,
-                      color: textColor),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  contact,
-                  style: TextStyle(
-                      fontSize: 16, color: textColor.withOpacity(0.7)),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child:
-                            Text('Close', style: TextStyle(color: textColor)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueGrey.shade800,
-                        ),
-                        child: const Text('Call Now'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+  void openDialer(String phoneNumber, BuildContext context) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not launch dialer for $phoneNumber'),
+          backgroundColor: Colors.red,
         ),
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -358,7 +313,7 @@ class ProfessionalCard extends StatelessWidget {
                   SizedBox(width: screenWidth * 0.03),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _showContactDialog(context),
+                      onPressed: () => openDialer(contact, context),
                       icon: Center(
                         child: Icon(
                           Icons.call,
