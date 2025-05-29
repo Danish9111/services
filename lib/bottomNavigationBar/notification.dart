@@ -41,9 +41,10 @@ class NotificationsPage extends ConsumerWidget {
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('task')
+              .where('status',
+                  whereIn: ['pending', 'acceptedByWorker', 'rejectedByWorker'])
               .where('professionalId', isEqualTo: uid)
-              .where('acceptedByWorker', isEqualTo: false)
-              .orderBy('createdAt', descending: true)
+              // .orderBy('createdAt', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -169,26 +170,6 @@ class NotificationsPage extends ConsumerWidget {
                             },
                           ),
                         );
-                        // if (result == null) return;
-                        // // Show info dialog after decision
-                        // await showDialog(
-                        //   context: context,
-                        //   builder: (_) => AlertDialog(
-                        //     backgroundColor: darkColorPro,
-                        //     title: Text('Offer ${result == 'accepted' ? 'Accepted' : 'Rejected'}',
-                        //         style: TextStyle(color: lightColorPro)),
-                        //     content: const Text(
-                        //       'You can visit history to see progress.',
-                        //       style: TextStyle(color: Colors.grey),
-                        //     ),
-                        //     actions: [
-                        //       TextButton(
-                        //         onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-                        //         child: const Text('OK'),
-                        //       ),
-                        //     ],
-                        //   ),
-                        // );
                       } else {
                         // Always allow tap, show info dialog
                         await showDialog(

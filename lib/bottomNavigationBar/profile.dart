@@ -294,108 +294,108 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                       _buildInfoSection(lightColorPro, darkColorPro),
                       const SizedBox(height: 20),
                       _buildActionButtons(lightColorPro, darkColorPro),
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('workerProfiles')
-                            .doc(uid)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData || !snapshot.data!.exists) {
-                            return const SizedBox.shrink();
-                          }
-                          final data =
-                              snapshot.data!.data() as Map<String, dynamic>;
-                          final experience =
-                              data['experience']?.toString() ?? '';
-                          final fee = data['fee']?.toString() ?? '';
-                          final availability =
-                              data['availability']?.toString() ?? '';
-                          final missingFields = <String>[];
-                          if (experience.isEmpty) {
-                            missingFields.add('Experience');
-                          }
-                          if (fee.isEmpty) missingFields.add('Fee');
-                          if (availability.isEmpty) {
-                            missingFields.add('Availability');
-                          }
-                          if (missingFields.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return Container(
-                            margin: const EdgeInsets.only(top: 24),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade50,
-                              border: Border.all(color: Colors.orangeAccent),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.warning_amber_rounded,
-                                      color: Colors.orange,
-                                      size: 28,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Profile completion',
-                                            style: TextStyle(
-                                              color: Colors.orange.shade900,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Add the following to complete your professional profile: '
-                                            '${missingFields.join(', ')}',
-                                            style: TextStyle(
-                                              color: Colors.orange.shade900,
-                                              fontSize: 14,
-                                              height: 1.5,
-                                            ),
-                                          ),
-                                        ],
+                      if (_isEditing)
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('workerProfiles')
+                              .doc(uid)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData || !snapshot.data!.exists) {
+                              return const SizedBox.shrink();
+                            }
+                            final data =
+                                snapshot.data!.data() as Map<String, dynamic>;
+                            final experience =
+                                data['experience']?.toString() ?? '';
+                            final fee = data['fee']?.toString() ?? '';
+                            final availability =
+                                data['availability']?.toString() ?? '';
+                            final missingFields = <String>[];
+                            if (experience.isEmpty)
+                              missingFields.add('Experience');
+                            if (fee.isEmpty) missingFields.add('Fee');
+                            if (availability.isEmpty)
+                              missingFields.add('Availability');
+                            if (missingFields.isEmpty)
+                              return const SizedBox.shrink();
+                            return Container(
+                              margin: const EdgeInsets.only(top: 24),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                border: Border.all(color: Colors.orangeAccent),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.warning_amber_rounded,
+                                        color: Colors.orange,
+                                        size: 28,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Center(
-                                  child: ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orangeAccent,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20, vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                    ),
-                                    onPressed: () {
-                                      _showCompleteProfileModal(missingFields);
-                                    },
-                                    icon: const Icon(
-                                        Icons.check_circle_outline_sharp,
-                                        color: Colors.white,
-                                        opticalSize: 20),
-                                    label: const Text('Complete Profile'),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Profile completion',
+                                              style: TextStyle(
+                                                color: Colors.orange.shade900,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Add the following to complete your professional profile: '
+                                              '${missingFields.join(', ')}',
+                                              style: TextStyle(
+                                                color: Colors.orange.shade900,
+                                                fontSize: 14,
+                                                height: 1.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      )
+                                  const SizedBox(height: 16),
+                                  Center(
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.orangeAccent,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 20, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
+                                      ),
+                                      onPressed: () {
+                                        _showCompleteProfileModal(
+                                            missingFields);
+                                      },
+                                      icon: const Icon(
+                                          Icons.check_circle_outline_sharp,
+                                          color: Colors.white,
+                                          opticalSize: 20),
+                                      label: const Text('Complete Profile'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        )
                     ],
                   ),
                 ),
@@ -969,6 +969,22 @@ class _EmployerProfileState extends ConsumerState<EmployerProfile> {
                     _isEditing = true;
                   });
                   _updateControllers();
+
+                  // Check for missing fields and show modal if needed
+                  final data = workerData;
+                  final experience = data['experience']?.toString() ?? '';
+                  final fee = data['fee']?.toString() ?? '';
+                  final availability = data['availability']?.toString() ?? '';
+                  final missingFields = <String>[];
+                  if (experience.isNotEmpty) missingFields.add('Experience');
+                  if (fee.isNotEmpty) missingFields.add('Fee');
+                  if (availability.isNotEmpty)
+                    missingFields.add('Availability');
+                  if (missingFields.isNotEmpty) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _showCompleteProfileModal(missingFields);
+                    });
+                  }
                 },
               ),
         const SizedBox(height: 12),
